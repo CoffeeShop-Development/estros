@@ -179,6 +179,16 @@ static uint32_t asm_firstpass(asm_state_t* state, char const *name, struct asm_o
                 strcpy(state->fixups[state->n_fixups].name, op[1].data.name);
                 ++state->n_fixups;
             }
+        } else if (match && xm_inst_table[i].format == XM_FORMAT_F4F4F4F4) {
+            ASM_ERROR_IF(op[0].type != OP_FLOAT_REG);
+            ASM_ERROR_IF(op[1].type != OP_FLOAT_REG);
+            ASM_ERROR_IF(op[2].type != OP_FLOAT_REG);
+            ASM_ERROR_IF(op[3].type != OP_FLOAT_REG);
+            ob[0] = XM_CB_FLOAT;
+            ob[1] = op[0].data.i & 0x0f | (op[1].data.i << 4);
+            ob[2] = op[2].data.i & 0x0f | (op[3].data.i << 4);
+            ob[3] = xm_inst_table[i].op;
+            oc = 4;
         } else if (match) {
             ASM_ERROR_IF(true, "unhandled type");
         }

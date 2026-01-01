@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -227,6 +228,68 @@ static void cpu_do_alu1(sim_state_t* sim, uint8_t op, uint32_t addr, uint8_t rd,
     }
 }
 
+static float cpu_i_maxf(float a, float b) {
+    return a > b ? a : b;
+}
+static float cpu_i_minf(float a, float b) {
+    return a < b ? a : b;
+}
+static float cpu_i_clampf(float a, float low, float upper) {
+    return cpu_i_minf(cpu_i_maxf(a, low), upper);
+}
+
+float cpu_do_fpu1(sim_state_t* sim, uint8_t op, uint8_t ra, uint8_t rb, uint8_t rc) {
+    float a = sim->cpu.f[ra];
+    float b = sim->cpu.f[rb];
+    float c = sim->cpu.f[rc];
+    switch (op) {
+    case 0x00: return (a + b) + c;
+    case 0x01: return (a + b) - c;
+    case 0x02: return (a + b) / c;
+    case 0x03: return (a + b) * c;
+    case 0x04: return fmodf(a + b, c);
+    case 0x05: return a + b * c;
+    case 0x06: return a - b * c;
+    case 0x07: return sqrtf(a + b + c);
+    case 0x08: return hypotf(a + b, c);
+    case 0x09: return sqrtf(a * a + b * b + c * c);
+    case 0x0a: return fabs(a + b + c);
+    case 0x0b: return signbit(a + b + c);
+    case 0x0c: return -fabs(a + b + c);
+    case 0x0d: return cosf(a + b + c);
+    case 0x0e: return sinf(a + b + c);
+    case 0x0f: return tanf(a + b + c);
+    case 0x10: return acosf(a + b + c);
+    case 0x11: return asinf(a + b + c);
+    case 0x12: return atanf(a + b + c);
+    case 0x13: return cbrtf(a + b + c);
+    case 0x14: return y0(a + b + c);
+    case 0x15: return y1(a + b + c);
+    case 0x16: return j0(a + b + c);
+    case 0x17: return j1(a + b + c);
+    case 0x18: return expf(a + b + c);
+    case 0x19: return 1.f / sqrtf(a + b + c);
+    case 0x1a: return 1.f / cbrtf(a + b + c);
+    case 0x1b: return powf(a + b, c);
+    case 0x1c: return powf(powf(a, b), c);
+    case 0x1d: return cpu_i_maxf(a + b, c);
+    case 0x1e: return cpu_i_minf(a + b, c);
+    case 0x1f: return cpu_i_clampf(a, b, c);
+    case 0x20: return 1.f / (a + b + c);
+    case 0x21: return M_PI * (a + b + c);
+    case 0x22: return M_E * (a + b + c);
+    case 0x23: return M_PI_2 * (a + b + c);
+    case 0x24: return (a + b + c) * M_PI / 180.f;
+    case 0x25: return (a + b + c) * 180.f / M_PI;
+    case 0x26: return a > b ? c : 0.f;
+    case 0x27: return a + b > 0.f ? c : 0.f;
+    case 0x28: return gammaf(a + b + c);
+    case 0x29: return lgammaf(a + b + c);
+    /* complex isa is TODO */
+    default: return 0.f;
+    }
+}
+
 cpu_execute_result_t cpu_step(sim_state_t* sim) {
     uint8_t id[8]; /* Instruction decode */
 
@@ -307,6 +370,18 @@ cpu_execute_result_t cpu_step(sim_state_t* sim) {
         }
         sim->cpu.pc += 4;
         return CPUE_CONTINUE;
+    }
+    case XM_CB_FLOAT: {
+        uint8_t op = id[3];
+        uint8_t rd = id[1] & 0x0f;
+        uint8_t ra = (id[1] >> 4) & 0x0f;
+        uint8_t rb = id[2] & 0x0f;
+        uint8_t rc = (id[2] >> 4) & 0x0f;
+        switch (op) {
+        default:
+            sim->cpu.f[rd] = cpu_do_fpu1(sim, op, ra, rb, rc);
+            break;
+        }
     }
     case XM_CB_DEBUG: {
         switch (id[0] >> 4) {

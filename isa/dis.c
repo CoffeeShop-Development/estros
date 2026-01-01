@@ -9,7 +9,7 @@ void dis_print_format(char ob[], const char* name, enum xm_inst_format f, FILE* 
     char buf[BUFSIZ];
     buf[0] = '\0';
     switch (f) {
-    case XM_FORMAT_R4R4I8O8_IFHBS: {
+    case XM_FORMAT_R4R4I8O8_IFHBS:
         if ((ob[3] & 0x80) != 0) {
             sprintf(buf, "$r%i,$r%i,%i",
                 ob[1] & 0x0f, (ob[1] >> 4) & 0x0f,
@@ -20,7 +20,6 @@ void dis_print_format(char ob[], const char* name, enum xm_inst_format f, FILE* 
                 ob[2] & 0x0f, (ob[2] >> 4) & 0x0f);
         }
         break;
-    }
     case XM_FORMAT_R4U4RA8O8: {
         uint8_t cc = ob[1] >> 4;
         sprintf(buf, "$r%i,%i,?%c%c%c%c", ob[1] & 0x0f, (int32_t)(int8_t)ob[2],
@@ -31,6 +30,11 @@ void dis_print_format(char ob[], const char* name, enum xm_inst_format f, FILE* 
         );
         break;
     }
+    case XM_FORMAT_F4F4F4F4:
+        sprintf(buf, "$f%i,$f%i,$f%i,$f%i",
+            ob[1] & 0x0f, (ob[1] >> 4) & 0x0f,
+            ob[2] & 0x0f, (ob[2] >> 4) & 0x0f);
+        break;
     case XM_FORMAT_U16O8:
         break;
     default:

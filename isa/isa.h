@@ -76,6 +76,8 @@ enum xm_inst_format {
     XM_FORMAT_R8R8RA8O8,
     /* <Integer> Unused(16) Opcode(8) */
     XM_FORMAT_U16O8,
+    /* <Float> Fd(4) Fa(4) Fb(4) Fc(4) */
+    XM_FORMAT_F4F4F4F4,
 };
 
 static struct xm_inst_table_entry {
@@ -134,6 +136,62 @@ static struct xm_inst_table_entry {
     {"bet6", XM_FORMAT_R4U4RA8O8, 0x5e},
     {"bet7", XM_FORMAT_R4U4RA8O8, 0x5f},
     /* 0x46 - 0x4F hole */
+
+    /* Floating point insn */
+    {"fadd3", XM_FORMAT_F4F4F4F4, 0x00},
+    {"fsub3", XM_FORMAT_F4F4F4F4, 0x01},
+    {"fdiv3", XM_FORMAT_F4F4F4F4, 0x02},
+    {"fmul3", XM_FORMAT_F4F4F4F4, 0x03},
+    {"fmod3", XM_FORMAT_F4F4F4F4, 0x04},
+    {"fmadd", XM_FORMAT_F4F4F4F4, 0x05},
+    {"fmsub", XM_FORMAT_F4F4F4F4, 0x06},
+    {"fsqrt3", XM_FORMAT_F4F4F4F4, 0x07},
+    {"fhyp", XM_FORMAT_F4F4F4F4, 0x08},
+    {"fnorm", XM_FORMAT_F4F4F4F4, 0x09},
+    {"fabs", XM_FORMAT_F4F4F4F4, 0x0a},
+    {"fsign", XM_FORMAT_F4F4F4F4, 0x0b},
+    {"fnabs", XM_FORMAT_F4F4F4F4, 0x0c},
+    {"fcos", XM_FORMAT_F4F4F4F4, 0x0d},
+    {"fsin", XM_FORMAT_F4F4F4F4, 0x0e},
+    {"ftan", XM_FORMAT_F4F4F4F4, 0x0f},
+    {"facos", XM_FORMAT_F4F4F4F4, 0x10},
+    {"fatan", XM_FORMAT_F4F4F4F4, 0x11},
+    {"fasin", XM_FORMAT_F4F4F4F4, 0x12},
+    {"fcbrt", XM_FORMAT_F4F4F4F4, 0x13},
+    {"fy0", XM_FORMAT_F4F4F4F4, 0x14},
+    {"fy1", XM_FORMAT_F4F4F4F4, 0x15},
+    {"fj0", XM_FORMAT_F4F4F4F4, 0x16},
+    {"fj1", XM_FORMAT_F4F4F4F4, 0x17},
+    {"fexp", XM_FORMAT_F4F4F4F4, 0x18},
+    {"frsqrt", XM_FORMAT_F4F4F4F4, 0x19},
+    {"frcbrt", XM_FORMAT_F4F4F4F4, 0x1a},
+    {"fpow2", XM_FORMAT_F4F4F4F4, 0x1b},
+    {"fpow3", XM_FORMAT_F4F4F4F4, 0x1c},
+    {"fmax", XM_FORMAT_F4F4F4F4, 0x1d},
+    {"fmin", XM_FORMAT_F4F4F4F4, 0x1e},
+    {"fclamp", XM_FORMAT_F4F4F4F4, 0x1f},
+    {"finv", XM_FORMAT_F4F4F4F4, 0x20},
+    {"fconstpi", XM_FORMAT_F4F4F4F4, 0x21},
+    {"fconste", XM_FORMAT_F4F4F4F4, 0x22},
+    {"fconstpi2", XM_FORMAT_F4F4F4F4, 0x23},
+    {"frad", XM_FORMAT_F4F4F4F4, 0x24},
+    {"fdeg", XM_FORMAT_F4F4F4F4, 0x25},
+    {"fsel", XM_FORMAT_F4F4F4F4, 0x26},
+    {"fsel2", XM_FORMAT_F4F4F4F4, 0x27},
+    {"fgamma", XM_FORMAT_F4F4F4F4, 0x28},
+    {"flgamma", XM_FORMAT_F4F4F4F4, 0x29},
+    /* Complex ISA */
+    {"faddcrr", XM_FORMAT_F4F4F4F4, 0x30},
+    {"fsubcrr", XM_FORMAT_F4F4F4F4, 0x31},
+    {"fdivcrr", XM_FORMAT_F4F4F4F4, 0x32},
+    {"fmulcrr", XM_FORMAT_F4F4F4F4, 0x33},
+    {"fmodcrr", XM_FORMAT_F4F4F4F4, 0x34},
+    /* Hole */
+    {"faddcri", XM_FORMAT_F4F4F4F4, 0x40},
+    {"fsubcri", XM_FORMAT_F4F4F4F4, 0x41},
+    {"fdivcri", XM_FORMAT_F4F4F4F4, 0x42},
+    {"fmulcri", XM_FORMAT_F4F4F4F4, 0x43},
+    {"fmodcri", XM_FORMAT_F4F4F4F4, 0x44},
 };
 #define XM_INST_TABLE_COUNT (sizeof(xm_inst_table) / sizeof(xm_inst_table[0]))
 
