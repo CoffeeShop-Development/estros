@@ -9,8 +9,8 @@
 #define FLAGS_BIT_N (0) /* Negative */
 #define FLAGS_BIT_Z (1) /* Zero */
 #define FLAGS_BIT_C (2) /* Carry */
-#define FLAGS_BIT_O (3) /* Overflow */
-#define FLAGS_BIT_V (4) /* Underflow */
+#define FLAGS_BIT_V (3) /* Underflow */
+#define FLAGS_BIT_O (4) /* Overflow */
 #define FLAGS_BIT_PG (5) /* Paging enabled */
 
 /* First 4 bits of the first instruction byte */
@@ -70,7 +70,7 @@ enum xm_inst_format {
     XM_FORMAT_AA16O8,
     /* <Integer> RelativeAddress(16) Opcode(8) */
     XM_FORMAT_RA16O8,
-    /* <Integer> Rd(8) RelativeAddress(8) Opcode(8) */
+    /* <Integer> Rd(4) U(4) RelativeAddress(8) Opcode(8) */
     XM_FORMAT_R4U4RA8O8,
     /* <Integer> Rd(8) Ra(8) Opcode(8) */
     XM_FORMAT_R8R8RA8O8,

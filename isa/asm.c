@@ -49,6 +49,7 @@ struct operand {
         OP_TILE_REG,
         OP_IMM,
         OP_LABEL,
+        OP_COND,
     } type;
 };
 
@@ -87,6 +88,13 @@ static struct operand asm_parse_operand(const char *p) {
     } else if (*p == '$' && p[1] == 't' && p[2] == 'm') {
         op.type = OP_TILE_REG;
         op.data.i = atoll(p + 3);
+    } else if (*p == '?') {
+        op.type = OP_COND;
+        ++p;
+        if (*p == '!') op.data.i |= 0x01, ++p;
+        if (*p == 'n') op.data.i |= 0x02, ++p;
+        if (*p == 'z') op.data.i |= 0x04, ++p;
+        if (*p == 'c') op.data.i |= 0x08, ++p;
     /* Stack pointer */
     } else if (*p == '$' && p[1] == 's' && p[2] == 'p') {
         op.type = OP_REG;
@@ -161,8 +169,9 @@ static unsigned long asm_firstpass(char const *name, struct operand const op[]) 
         } else if (match && xm_inst_table[i].format == XM_FORMAT_R4U4RA8O8) {
             ASM_ERROR_IF(op[0].type != OP_REG);
             ASM_ERROR_IF(op[1].type != OP_IMM && op[1].type != OP_LABEL);
+            ASM_ERROR_IF(op[2].type != OP_COND);
             ob[0] = XM_CB_INTEGER;
-            ob[1] = op[0].data.i & 0x0f;
+            ob[1] = op[0].data.i & 0x0f | (op[2].data.i << 4);
             ob[2] = op[1].data.i & 0xff;
             ob[3] = xm_inst_table[i].op;
             oc = 4;

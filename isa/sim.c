@@ -150,24 +150,38 @@ static uint32_t cpu_i_bswap(uint32_t v) {
         | (((v >> 8) & 0xff) << 16)
         | (((v >> 0) & 0xff) << 24);
 }
+
+static uint32_t cpu_i_add32(sim_state_t* sim, uint32_t a, uint32_t b) {
+    uint64_t result = (uint64_t)a + (uint64_t)b;
+    sim->cpu.flags &= ~FLAGS_BIT_C;
+    sim->cpu.flags |= (result & ~UINT32_MAX) != 0 ? FLAGS_BIT_C : 0;
+    return (uint32_t)result;
+}
+static int32_t cpu_i_sub32(sim_state_t* sim, int32_t a, int32_t b) {
+    int64_t result = (int64_t)a - (int64_t)b;
+    sim->cpu.flags &= ~FLAGS_BIT_C;
+    sim->cpu.flags |= (result & ~UINT32_MAX) != 0 ? FLAGS_BIT_C : 0;
+    return (int32_t)result;
+}
+
 static uint32_t cpu_do_basic_alu(sim_state_t* sim, uint8_t op, uint32_t a, uint32_t b) {
     switch (op & 0x7f) {
-    case 0x00: return a + b; break;
-    case 0x01: return a - b; break;
-    case 0x02: return a * b; break;
-    case 0x03: return a / b; break;
-    case 0x04: return a % b; break;
-    case 0x05: return (int32_t)a * (int32_t)b; break;
-    case 0x06: return a & b; break;
-    case 0x07: return a ^ b; break;
-    case 0x08: return a | b; break;
-    case 0x09: return a << b; break;
-    case 0x0a: return a >> b; break;
-    case 0x0b: return cpu_i_popcount(a << b); break;
-    case 0x0c: return cpu_i_clz(a << b); break;
-    case 0x0d: return cpu_i_clo(a << b); break;
-    case 0x0e: return cpu_i_bswap(a << b); break;
-    case 0x0f: return 32 - cpu_i_popcount(a << b); break;
+    case 0x00: return cpu_i_add32(sim, a, b);
+    case 0x01: return cpu_i_sub32(sim, a, b);
+    case 0x02: return a * b;
+    case 0x03: return a / b;
+    case 0x04: return a % b;
+    case 0x05: return (int32_t)a * (int32_t)b;
+    case 0x06: return a & b;
+    case 0x07: return a ^ b;
+    case 0x08: return a | b;
+    case 0x09: return a << b;
+    case 0x0a: return a >> b;
+    case 0x0b: return cpu_i_popcount(a << b);
+    case 0x0c: return cpu_i_clz(a << b);
+    case 0x0d: return cpu_i_clo(a << b);
+    case 0x0e: return cpu_i_bswap(a << b);
+    case 0x0f: return 32 - cpu_i_popcount(a << b);
     default: fprintf(stderr, "unknown %x\n", op); break;
     }
 }
@@ -183,7 +197,12 @@ static void cpu_do_alu1(sim_state_t* sim, uint8_t op, uint32_t addr, uint8_t rd,
     case 0x16: sim->cpu.r[rd] = cpu_read32(sim, addr); break;
     /*case 0x17: cpu_read32(sim, addr, sim->cpu.r[rd]); break;*/
     case 0x18: sim->cpu.r[rd] = addr; break;
-    default: sim->cpu.r[rd] = cpu_do_basic_alu(sim, op, a, b); break;
+    default:
+        sim->cpu.r[rd] = cpu_do_basic_alu(sim, op, a, b);
+        sim->cpu.flags &= ~(FLAGS_BIT_Z | FLAGS_BIT_N);
+        sim->cpu.flags |= sim->cpu.r[rd] == 0 ? FLAGS_BIT_Z : 0;
+        sim->cpu.flags |= (int32_t)sim->cpu.r[rd] < 0 ? FLAGS_BIT_N : 0;   
+        break;
     }
 }
 
@@ -222,6 +241,7 @@ cpu_execute_result_t cpu_step(sim_state_t* sim) {
             return CPUE_CONTINUE;
         } else if (op >= 0x50 && op <= 0x5F) { /* b */
             uint8_t ra = id[1] & 0x0f;
+            uint8_t cc = (id[1] >> 4);
             int32_t rela = (int32_t)(int8_t)id[2];
             bool cond = 0;
             switch ((op - 0x50) & 0x0f) {
@@ -242,6 +262,11 @@ cpu_execute_result_t cpu_step(sim_state_t* sim) {
             case 14: cond = sim->cpu.r[ra] >= XM_ABI_T1; break;
             case 15: cond = sim->cpu.r[ra] <= XM_ABI_T1; break;
             }
+            /* !, N, Z, C */
+            cond = (cc & 0x02) != 0 ? (cond && (sim->cpu.flags & FLAGS_BIT_N) != 0) : cond;
+            cond = (cc & 0x04) != 0 ? (cond && (sim->cpu.flags & FLAGS_BIT_Z) != 0) : cond;
+            cond = (cc & 0x08) != 0 ? (cond && (sim->cpu.flags & FLAGS_BIT_C) != 0) : cond;
+            cond = (cc & 0x01) != 0 ? !cond : cond; /* Invert condition flag */
             sim->cpu.pc += cond ? rela : 4;
             cond ? ++sim->perf.b_taken : ++sim->perf.b_misses;
             return CPUE_CONTINUE;

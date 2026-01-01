@@ -21,9 +21,16 @@ void dis_print_format(char ob[], const char* name, enum xm_inst_format f, FILE* 
         }
         break;
     }
-    case XM_FORMAT_R4U4RA8O8:
-        sprintf(buf, "$r%i,%i", ob[1] & 0x0f, (int32_t)(int8_t)ob[2]);
+    case XM_FORMAT_R4U4RA8O8: {
+        uint8_t cc = ob[1] >> 4;
+        sprintf(buf, "$r%i,%i,?%c%c%c%c", ob[1] & 0x0f, (int32_t)(int8_t)ob[2],
+            (cc & 0x01) != 0 ? '!' : ' ',
+            (cc & 0x02) != 0 ? 'n' : ' ',
+            (cc & 0x04) != 0 ? 'z' : ' ',
+            (cc & 0x08) != 0 ? 'c' : ' '
+        );
         break;
+    }
     case XM_FORMAT_U16O8:
         break;
     default:

@@ -1,2 +1,2 @@
 start:
-    bnz $r0,start
+    bnz $r0,start,?

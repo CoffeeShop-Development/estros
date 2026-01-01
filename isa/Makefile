@@ -24,6 +24,10 @@ test: build
 	./xm_dis <$(SAMPLES_DIR)/branch0.o
 	./xm_sim $(SAMPLES_DIR)/branch0.o -t0 -ra -test -quiet
 
+	./xm_asm $(SAMPLES_DIR)/bcond.S $(SAMPLES_DIR)/bcond.o
+	./xm_dis <$(SAMPLES_DIR)/bcond.o
+	./xm_sim $(SAMPLES_DIR)/bcond.o -t0 -ra -test -quiet
+
 	./xm_asm $(SAMPLES_DIR)/memcpy.S $(SAMPLES_DIR)/memcpy.o
 	./xm_dis <$(SAMPLES_DIR)/memcpy.o
 	./xm_sim $(SAMPLES_DIR)/memcpy.o -a0 4096 -a1 8192 -a2 1
