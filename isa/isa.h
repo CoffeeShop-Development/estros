@@ -66,6 +66,8 @@ enum xm_inst_format {
             Rd(4) Ra(4) Imm(8) Opcode(8)
     */
     XM_FORMAT_R4R4I8O8_IFHBS,
+    /* <Integer> Rd(4) Ra(4) Rb(4) Rc(4) */
+    XM_FORMAT_R4R4R4R4,
     /* <Integer> AbsoluteAddress(16) Opcode(8) */
     XM_FORMAT_AA16O8,
     /* <Integer> RelativeAddress(16) Opcode(8) */
@@ -89,6 +91,7 @@ static enum xm_cb0 xm_get_cb0_from_format(enum xm_inst_format f) {
     case XM_FORMAT_R4R4R4I4O8:
     case XM_FORMAT_R4R4I8O8:
     case XM_FORMAT_R4R4I8O8_IFHBS:
+    case XM_FORMAT_R4R4R4R4:
     case XM_FORMAT_AA16O8:
     case XM_FORMAT_RA16O8:
     case XM_FORMAT_R4U4RA8O8:
@@ -133,6 +136,23 @@ static enum xm_cb0 xm_get_cb0_from_format(enum xm_inst_format f) {
     /* 0x19 - 0x1F */ \
     XM_INST_ELEM(cmp, XM_FORMAT_R4R4I8O8_IFHBS, 0x20) \
     XM_INST_ELEM(cmpkp, XM_FORMAT_R4R4I8O8_IFHBS, 0x21) \
+    /**/ \
+    XM_INST_ELEM(memcpy, XM_FORMAT_R4R4R4R4, 0x30) \
+    XM_INST_ELEM(memmov, XM_FORMAT_R4R4R4R4, 0x31) \
+    XM_INST_ELEM(memset, XM_FORMAT_R4R4R4R4, 0x32) \
+    XM_INST_ELEM(memchr, XM_FORMAT_R4R4R4R4, 0x33) \
+    XM_INST_ELEM(memchrf, XM_FORMAT_R4R4R4R4, 0x34) \
+    XM_INST_ELEM(strcpy, XM_FORMAT_R4R4R4R4, 0x35) \
+    XM_INST_ELEM(strcat, XM_FORMAT_R4R4R4R4, 0x36) \
+    XM_INST_ELEM(strpbrk, XM_FORMAT_R4R4R4R4, 0x37) \
+    XM_INST_ELEM(strncpy, XM_FORMAT_R4R4R4R4, 0x38) \
+    XM_INST_ELEM(strncat, XM_FORMAT_R4R4R4R4, 0x39) \
+    XM_INST_ELEM(strchr, XM_FORMAT_R4R4R4R4, 0x3a) \
+    XM_INST_ELEM(strnchr, XM_FORMAT_R4R4R4R4, 0x3b) \
+    XM_INST_ELEM(indtab, XM_FORMAT_R4R4R4R4, 0x3c) \
+    XM_INST_ELEM(indtab8, XM_FORMAT_R4R4R4R4, 0x3d) \
+    XM_INST_ELEM(chtree, XM_FORMAT_R4R4R4R4, 0x3e) \
+    XM_INST_ELEM(chtreeunchk, XM_FORMAT_R4R4R4R4, 0x3e) \
     /* 0x21 - 0x3F hole */ \
     XM_INST_ELEM(jmp, XM_FORMAT_AA16O8, 0x40) \
     XM_INST_ELEM(jmprel, XM_FORMAT_RA16O8, 0x41) \

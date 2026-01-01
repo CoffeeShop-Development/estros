@@ -92,6 +92,76 @@ Compares `$rD = $rA + $rB + imm8`, updates the flags and stores the flags after 
 ### `cmpkp $rD,$rA,$rB,imm8`
 Compares `$rD = $rA + $rB + imm8` and stores the flags after the operation on `$rD` but keeps the flags without updating them.
 
+## Accelerated DMA instruction set
+
+### `memcpy $rD,$rA,$rB,$rC`
+
+Copies `$rC` bytes from `$rB` to `$rA`. Computes `$rD = $rA`.
+
+### `memmov $rD,$rA,$rB,$rC`
+
+Copies `$rC` bytes from `$rB` to `$rA`. Computes `$rD = $rA`. If `$rA > $rB` then the copy is done backwards.
+
+### `memset $rD,$rA,$rB,$rC`
+
+Sets `$rC` bytes on `$rA` to the value of `u8($rB)`.
+Set `$rD = $rA`.
+
+### `memchr $rD,$rA,$rB,$rC`
+
+Finds `u8($rB)` in memory area `$rA` with `$rC` bytes. Set `$rD` to the address where it gets found.
+
+### `memchrf $rD,$rA,$rB,$rC`
+
+Finds `u8($rB)` in memory area `$rA` with `$rC` bytes. Set `$rD` to the address where it gets found.
+Updates `Z` and `N` appropriatedly.
+
+### `strcpy $rD,$rA,$rB,$rC`
+
+### `strcat $rD,$rA,$rB,$rC`
+
+### `strpbrk $rD,$rA,$rB,$rC`
+
+### `strncpy $rD,$rA,$rB,$rC`
+
+### `strncat $rD,$rA,$rB,$rC`
+
+### `strchr $rD,$rA,$rB,$rC`
+
+### `strnchr $rD,$rA,$rB,$rC`
+
+### `indtab $rD,$rA,$rB,$rC`
+
+Obtains the pointer in the address `$rA + ($rB + $rC) * 4`.
+
+### `indtab8 $rD,$rA,$rB,$rC`
+
+Obtains the pointer in the address `$rA + ($rB + $rC) * 8`.
+
+### `chtree $rD,$rA,$rB,$rC`
+
+Executes the following code:
+```c
+uint32_t counter = rc;
+uint32_t *p = ra + rb;
+do {
+    p = read32(p)
+} while (p != NULL && counter-- > 0);
+```
+
+### `chtreeunchk $rD,$rA,$rB,$rC`
+
+Executes the following code:
+```c
+uint32_t counter = rc;
+uint32_t *p = ra + rb;
+do {
+    p = read32(p)
+} while (counter-- > 0);
+```
+
+## Branch instruction set
+
 ### `jmp addr16`
 Jumps to the absolute address `addr16`.
 

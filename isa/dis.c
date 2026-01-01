@@ -30,6 +30,11 @@ void dis_print_format(char ob[], const char* name, enum xm_inst_format f, FILE* 
         );
         break;
     }
+    case XM_FORMAT_R4R4R4R4:
+        sprintf(buf, "$r%i,$r%i,$r%i,$r%i",
+            ob[1] & 0x0f, (ob[1] >> 4) & 0x0f,
+            ob[2] & 0x0f, (ob[2] >> 4) & 0x0f);
+        break;
     case XM_FORMAT_F4F4F4F4:
         sprintf(buf, "$f%i,$f%i,$f%i,$f%i",
             ob[1] & 0x0f, (ob[1] >> 4) & 0x0f,

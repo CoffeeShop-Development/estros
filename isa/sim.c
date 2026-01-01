@@ -762,6 +762,12 @@ CPU_INSTRUCTION_FN(lea) {
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 } 
+CPU_INSTRUCTION_FN(mcopy) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
 CPU_INSTRUCTION_FN(cmp) {
     struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
     uint32_t r = cpu_i_add32(sim, ds.a, ds.b);
@@ -781,6 +787,159 @@ CPU_INSTRUCTION_FN(cmpkp) {
     sim->cpu.flags |= (int32_t)r < 0 ? FLAGS_BIT_N : 0;
     *ds.dp = sim->cpu.flags;
     sim->cpu.flags = old_flags; /* restore flags */
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+struct cpu_decode_r4x4 {
+    uint32_t *dp;
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+};
+static struct cpu_decode_r4x4 cpu_decode_r4x4(sim_state_t* sim, uint8_t id[]) {
+    struct cpu_decode_r4x4 ds;
+    uint8_t rd = id[1] & 0x0f;
+    uint8_t ra = (id[1] >> 4) & 0x0f;
+    uint8_t rb = id[2] & 0x0f;
+    uint8_t rc = (id[2] >> 4) & 0x0f;
+    ds.dp = &sim->cpu.r[rd];
+    ds.a = sim->cpu.r[ra];
+    ds.b = sim->cpu.r[rb];
+    ds.c = sim->cpu.r[rc];
+    return ds;
+}
+CPU_INSTRUCTION_FN(memcpy) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    for (size_t i = 0; i < ds.c; ++i)
+        cpu_write8(sim, ds.a + i, cpu_read8(sim, ds.b + i));
+    *ds.dp = ds.a;
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(memmov) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    if (ds.a > ds.b) for (size_t i = 0; i < ds.c; ++i)
+        cpu_write8(sim, ds.a + i, cpu_read8(sim, ds.b + i));
+    else for (size_t i = 0; i < ds.c; ++i)
+        cpu_write8(sim, ds.a + ds.c - i, cpu_read8(sim, ds.b + ds.c - i));
+    *ds.dp = ds.a;
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(memset) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    for (size_t i = 0; i < ds.c; ++i)
+        cpu_write8(sim, ds.a + i, ds.b);
+    *ds.dp = ds.a;
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(memchr) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    *ds.dp = 0; /* Null */
+    for (size_t i = 0; i < ds.c; ++i)
+        if (cpu_read8(sim, ds.a + i) == ds.b) {
+            *ds.dp = ds.a;
+            break;
+        }
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(memchrf) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    *ds.dp = 0; /* Null */
+    for (size_t i = 0; i < ds.c; ++i)
+        if (cpu_read8(sim, ds.a + i) == ds.b) {
+            *ds.dp = ds.a;
+            break;
+        }
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(strcpy) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    size_t i = 0;
+    char c;
+    do {
+        c = cpu_read8(sim, ds.b + i);
+        cpu_write8(sim, ds.a + i, c);
+        if (c == '\0')
+            break;
+        ++i;
+    } while (c != '\0');
+    *ds.dp = ds.a;
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(strcat) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    /* TODO */ abort();
+    *ds.dp = ds.a;
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(strpbrk) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    /* TODO */ abort();
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(strncpy) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    *ds.dp = ds.a;
+    for (size_t i = 0; i < ds.c; ++i) {
+        char c = cpu_read8(sim, ds.b + i);
+        cpu_write8(sim, ds.a + i, c);
+        if (c == '\0')
+            break;
+    }
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(strncat) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    /* TODO */ abort();
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(strchr) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    /* TODO */ abort();
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(strnchr) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    /* TODO */ abort();
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(indtab) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    *ds.dp = cpu_read32(sim, ds.a + (ds.b + ds.c) * sizeof(uint32_t));
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(indtab8) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    *ds.dp = cpu_read32(sim, ds.a + (ds.b + ds.c) * sizeof(uint64_t));
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(chtree) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    uint32_t counter = ds.c;
+    uint32_t p = ds.a + ds.b;
+    do p = cpu_read32(sim, p); while (p && counter-- > 0);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(chtreeunchk) {
+    struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
+    uint32_t counter = ds.c;
+    uint32_t p = ds.a + ds.b;
+    do p = cpu_read32(sim, p); while (counter-- > 0);
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 }
