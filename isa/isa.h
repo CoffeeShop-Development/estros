@@ -118,7 +118,7 @@ static struct xm_inst_table_entry {
     {"ret", XM_FORMAT_U16O8, 0x43},
     /* 0x44 - 0x4F hole */
     {"bz", XM_FORMAT_R4U4RA8O8, 0x50},
-    {"bf", XM_FORMAT_R4U4RA8O8, 0x51},
+    {"b", XM_FORMAT_R4U4RA8O8, 0x51},
     {"bgzs", XM_FORMAT_R4U4RA8O8, 0x52},
     {"bgpc", XM_FORMAT_R4U4RA8O8, 0x53},
     {"bgpcrela", XM_FORMAT_R4U4RA8O8, 0x54},

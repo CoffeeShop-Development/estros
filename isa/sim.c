@@ -177,11 +177,11 @@ static uint32_t cpu_do_basic_alu(sim_state_t* sim, uint8_t op, uint32_t a, uint3
     case 0x08: return a | b;
     case 0x09: return a << b;
     case 0x0a: return a >> b;
-    case 0x0b: return cpu_i_popcount(a << b);
-    case 0x0c: return cpu_i_clz(a << b);
-    case 0x0d: return cpu_i_clo(a << b);
-    case 0x0e: return cpu_i_bswap(a << b);
-    case 0x0f: return 32 - cpu_i_popcount(a << b);
+    case 0x0b: return cpu_i_popcount(a + b);
+    case 0x0c: return cpu_i_clz(a + b);
+    case 0x0d: return cpu_i_clo(a + b);
+    case 0x0e: return cpu_i_bswap(a + b);
+    case 0x0f: return 32 - cpu_i_popcount(a + b);
     default: fprintf(stderr, "unknown %x\n", op); break;
     }
 }
