@@ -54,10 +54,10 @@ enum xm_cb1 {
 
 enum xm_inst_format {
     /* <Integer> Rd(4) Ra(4) Rb(4) Imm(4) Opcode(8)
-        Memory Address = (Ra + Rb * Imm); Value source/destination = Rd */
+        Memory Address = (Ra + Rb * Imm * 4); Value source/destination = Rd */
     XM_FORMAT_R4R4R4I4O8,
     /* <Integer> Rd(4) Ra(4) Imm(8) Opcode(8)
-        Memory Address = (Ra + Imm); Value source/destination = Rd */
+        Memory Address = (Ra + Imm * 4); Value source/destination = Rd */
     XM_FORMAT_R4R4I8O8,
     /* <Integer>
         If Opcode(8) high bit is set:
@@ -107,6 +107,7 @@ static struct xm_inst_table_entry {
     {"ldw", XM_FORMAT_R4R4I8O8_IFHBS, 0x15},
     {"ldl", XM_FORMAT_R4R4I8O8_IFHBS, 0x16},
     {"ldq", XM_FORMAT_R4R4I8O8_IFHBS, 0x17},
+    {"lea", XM_FORMAT_R4R4I8O8_IFHBS, 0x18},
     /* 0x18 - 0x3F hole */
     {"jmp", XM_FORMAT_AA16O8, 0x40},
     {"jmprel", XM_FORMAT_RA16O8, 0x41},

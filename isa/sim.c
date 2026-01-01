@@ -172,6 +172,21 @@ static uint32_t cpu_do_basic_alu(sim_state_t* sim, uint8_t op, uint32_t a, uint3
     }
 }
 
+static void cpu_do_alu1(sim_state_t* sim, uint8_t op, uint32_t addr, uint8_t rd, uint32_t a, uint32_t b) {
+    switch (op & 0x7f) {
+    case 0x10: cpu_write8(sim, addr, sim->cpu.r[rd]); break;
+    case 0x11: cpu_write16(sim, addr, sim->cpu.r[rd]); break;
+    case 0x12: cpu_write32(sim, addr, sim->cpu.r[rd]); break;
+    /*case 0x13: cpu_write32(sim, addr, sim->cpu.r[rd]); break;*/
+    case 0x14: sim->cpu.r[rd] = cpu_read8(sim, addr); break;
+    case 0x15: sim->cpu.r[rd] = cpu_read16(sim, addr); break;
+    case 0x16: sim->cpu.r[rd] = cpu_read32(sim, addr); break;
+    /*case 0x17: cpu_read32(sim, addr, sim->cpu.r[rd]); break;*/
+    case 0x18: sim->cpu.r[rd] = addr; break;
+    default: sim->cpu.r[rd] = cpu_do_basic_alu(sim, op, a, b); break;
+    }
+}
+
 cpu_execute_result_t cpu_step(sim_state_t* sim) {
     uint8_t id[8]; /* Instruction decode */
 
@@ -234,35 +249,15 @@ cpu_execute_result_t cpu_step(sim_state_t* sim) {
             uint8_t rd = id[1] & 0x0f;
             uint8_t ra = (id[1] >> 4) & 0x0f;
             uint8_t imm = id[2];
-            uint32_t addr = sim->cpu.r[ra] + imm;
-            switch (op & 0x7f) {
-            case 0x10: cpu_write8(sim, addr, sim->cpu.r[rd]); break;
-            case 0x11: cpu_write16(sim, addr, sim->cpu.r[rd]); break;
-            case 0x12: cpu_write32(sim, addr, sim->cpu.r[rd]); break;
-            /*case 0x13: cpu_write32(sim, addr, sim->cpu.r[rd]); break;*/
-            case 0x14: sim->cpu.r[rd] = cpu_read8(sim, addr); break;
-            case 0x15: sim->cpu.r[rd] = cpu_read16(sim, addr); break;
-            case 0x16: sim->cpu.r[rd] = cpu_read32(sim, addr); break;
-            /*case 0x17: cpu_read32(sim, addr, sim->cpu.r[rd]); break;*/
-            default: sim->cpu.r[rd] = cpu_do_basic_alu(sim, op, sim->cpu.r[ra], imm); break;
-            }
+            uint32_t addr = sim->cpu.r[ra] + imm * 4;
+            cpu_do_alu1(sim, op, addr, rd, sim->cpu.r[ra], imm);
         } else {
             uint8_t rd = id[1] & 0x0f;
             uint8_t ra = (id[1] >> 4) & 0x0f;
             uint8_t rb = id[2] & 0x0f;
             uint8_t imm = (id[2] >> 4) & 0x0f;
-            uint32_t addr = sim->cpu.r[ra] + sim->cpu.r[rb] * imm;
-            switch (op & 0x7f) {
-            case 0x10: cpu_write8(sim, addr, sim->cpu.r[rd]); break;
-            case 0x11: cpu_write16(sim, addr, sim->cpu.r[rd]); break;
-            case 0x12: cpu_write32(sim, addr, sim->cpu.r[rd]); break;
-            /*case 0x13: cpu_write32(sim, addr, sim->cpu.r[rd]); break;*/
-            case 0x14: sim->cpu.r[rd] = cpu_read8(sim, addr); break;
-            case 0x15: sim->cpu.r[rd] = cpu_read16(sim, addr); break;
-            case 0x16: sim->cpu.r[rd] = cpu_read32(sim, addr); break;
-            /*case 0x17: cpu_read32(sim, addr, sim->cpu.r[rd]); break;*/
-            default: sim->cpu.r[rd] = cpu_do_basic_alu(sim, op, sim->cpu.r[ra], imm); break;
-            }
+            uint32_t addr = sim->cpu.r[ra] + sim->cpu.r[rb] * imm * 4;
+            cpu_do_alu1(sim, op, addr, rd, sim->cpu.r[ra], sim->cpu.r[rb] + imm);
         }
         sim->cpu.pc += 4;
         return CPUE_CONTINUE;
