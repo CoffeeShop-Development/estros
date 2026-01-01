@@ -143,9 +143,9 @@ Obtains the pointer in the address `$rA + ($rB + $rC) * 8`.
 Executes the following code:
 ```c
 uint32_t counter = rc;
-uint32_t *p = ra + rb;
+uint32_t *p = ra;
 do {
-    p = read32(p)
+    p = read32(p + rb)
 } while (p != NULL && counter-- > 0);
 ```
 
@@ -154,9 +154,9 @@ do {
 Executes the following code:
 ```c
 uint32_t counter = rc;
-uint32_t *p = ra + rb;
+uint32_t *p = ra;
 do {
-    p = read32(p)
+    p = read32(p + rb)
 } while (counter-- > 0);
 ```
 

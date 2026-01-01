@@ -930,16 +930,16 @@ CPU_INSTRUCTION_FN(indtab8) {
 CPU_INSTRUCTION_FN(chtree) {
     struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
     uint32_t counter = ds.c;
-    uint32_t p = ds.a + ds.b;
-    do p = cpu_read32(sim, p); while (p && counter-- > 0);
+    uint32_t p = ds.a;
+    do p = cpu_read32(sim, p + ds.b); while (p && counter-- > 0);
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 }
 CPU_INSTRUCTION_FN(chtreeunchk) {
     struct cpu_decode_r4x4 ds = cpu_decode_r4x4(sim, id);
     uint32_t counter = ds.c;
-    uint32_t p = ds.a + ds.b;
-    do p = cpu_read32(sim, p); while (counter-- > 0);
+    uint32_t p = ds.a;
+    do p = cpu_read32(sim, p + ds.b); while (counter-- > 0);
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 }
