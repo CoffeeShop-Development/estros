@@ -87,10 +87,10 @@ Calculates `$rD = u64:memory[$rA + $rB * imm8 * 4]`
 Calculates `$rD = $rA + $rB * imm8 * 4`
 
 ### `cmp $rD,$rA,$rB,imm8`
-Compares `$rD = $rA + $rB * imm8 * 4`, updates the flags and stores the flags after the operation on `$rD`.
+Compares `$rD = $rA + $rB + imm8`, updates the flags and stores the flags after the operation on `$rD`.
 
 ### `cmpkp $rD,$rA,$rB,imm8`
-Compares `$rD = $rA + $rB * imm8 * 4` and stores the flags after the operation on `$rD` but keeps the flags without updating them.
+Compares `$rD = $rA + $rB + imm8` and stores the flags after the operation on `$rD` but keeps the flags without updating them.
 
 ### `jmp addr16`
 Jumps to the absolute address `addr16`.

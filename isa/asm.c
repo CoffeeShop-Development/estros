@@ -5,37 +5,19 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdbool.h>
-#include "isa.h"
-
-#if 0
+#include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include "isa.h"
+
 #define OUT_MAX_SIZE (INT32_MAX)
-struct asm_state {
-    char const *in;
-    size_t in_len;
-    char *out;
-    size_t out_len;
-};
-void asm_assemble(char const *in_path) {
-    int fd = open(in_path, O_RDONLY);
-    struct asm_state state;
-    struct stat st;
-    fstat(fd, &st);
-    state.in = (char const*)mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE | MAP_PREFAULT_READ, fd, 0);
-    state.in_len = st.st_size;
-    state.out = (char*)mmap(NULL, OUT_MAX_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
-    state.out_len = 0;
-    close(fd);
-}
-#endif
-/* Not worth to make a super optimized assembler, just whatever works :) */
+#define LIST_MAX_SIZE (65536)
 
-#define LABEL_NAME_SIZE 32
+#define LABEL_NAME_SIZE 16
 
-struct operand {
+struct asm_operand {
     union {
         long long i;
         char name[LABEL_NAME_SIZE];
@@ -53,35 +35,43 @@ struct operand {
     } type;
 };
 
-static struct {
-    struct label {
+typedef struct asm_state {
+    char *in;
+    size_t in_len;
+    char *out;
+    size_t out_len;
+
+    struct asm_label {
         char name[LABEL_NAME_SIZE];
-        unsigned long pc;
-    } labels[512];
-    unsigned n_labels;
-    struct fixup {
+        uint32_t pc;
+    } *labels;
+    size_t n_labels;
+
+    struct asm_fixup {
         char name[LABEL_NAME_SIZE];
-        enum fixup_type {
+        enum asm_fixup_type {
             FIXUP_NONE,
             /* Relative offset 16, size 8 */
             FIXUP_REL_O16S8,
         } type;
-        unsigned long pc;
-        unsigned long offset;
-    } fixups[512];
-    unsigned n_fixups;
-    unsigned long pc;
-    unsigned char buf[65536];
-    unsigned long count;
-} g_state = {0};
+        uint32_t pc;
+        uint32_t offset;
+    } *fixups;
+    size_t n_fixups;
+
+    uint32_t pc;
+
+    int fd_in;
+    int fd_out;
+} asm_state_t;
 
 #define ASM_ERROR_IF(c, ...) \
     do if (c) \
         (void)fprintf(stderr, __FILE__ ": " #c " " __VA_ARGS__), (void)fprintf(stderr, "\n"); \
     while (0);
 
-static struct operand asm_parse_operand(const char *p) {
-    struct operand op = {0};
+static struct asm_operand asm_parse_asm_operand(const char *p) {
+    struct asm_operand op = {0};
     if (*p == '$' && p[1] == 'c' && p[2] == 'r') {
         op.type = OP_CONTROL_REG;
         op.data.i = atoll(p + 3);
@@ -147,10 +137,10 @@ static struct operand asm_parse_operand(const char *p) {
     return op;
 }
 
-static unsigned long asm_firstpass(char const *name, struct operand const op[]) {
-    for (unsigned i = 0; i < XM_INST_TABLE_COUNT; ++i) {
+static uint32_t asm_firstpass(asm_state_t* state, char const *name, struct asm_operand const op[]) {
+    for (size_t i = 0; i < XM_INST_TABLE_COUNT; ++i) {
         bool match = strcmp(name, xm_inst_table[i].name) == 0;
-        unsigned char ob[8] = {0}, oc = 0;
+        uint8_t ob[8] = {0}, oc = 0;
         if (match && xm_inst_table[i].format == XM_FORMAT_R4R4I8O8_IFHBS) {
             ASM_ERROR_IF(op[0].type != OP_REG);
             ASM_ERROR_IF(op[1].type != OP_REG);
@@ -183,19 +173,19 @@ static unsigned long asm_firstpass(char const *name, struct operand const op[]) 
             ob[3] = xm_inst_table[i].op;
             oc = 4;
             if (op[1].type == OP_LABEL) {
-                g_state.fixups[g_state.n_fixups].type = FIXUP_REL_O16S8;
-                g_state.fixups[g_state.n_fixups].pc = g_state.pc;
-                g_state.fixups[g_state.n_fixups].offset = g_state.count;
-                strcpy(g_state.fixups[g_state.n_fixups].name, op[1].data.name);
-                ++g_state.n_fixups;
+                state->fixups[state->n_fixups].type = FIXUP_REL_O16S8;
+                state->fixups[state->n_fixups].pc = state->pc;
+                state->fixups[state->n_fixups].offset = state->out_len;
+                strcpy(state->fixups[state->n_fixups].name, op[1].data.name);
+                ++state->n_fixups;
             }
         } else if (match) {
             ASM_ERROR_IF(true, "unhandled type");
         }
         if (match) {
             ASM_ERROR_IF(oc == 0);
-            memcpy(g_state.buf + g_state.count, ob, oc);
-            g_state.count += oc;
+            memcpy(state->out + state->out_len, ob, oc);
+            state->out_len += oc;
             return oc;
         }
     }
@@ -203,75 +193,90 @@ static unsigned long asm_firstpass(char const *name, struct operand const op[]) 
     return 0;
 }
 
-static void asm_process_line(const char line[]) {
+static void asm_process_line(asm_state_t* state, char line[]) {
     char *p;
     /* Remove trailing characters */
     if ((p = strpbrk(line, "#\r\n")) != NULL) *p = '\0';
     if (*(p = line) != '\0') {
-        char *label, *mem;
+        char *lab, *mem;
         while (isspace(*p)) ++p;
         if (*p == '\0') return;
         /* An actual line? skip whitespace... */
-        if ((label = strchr(p, ':')) != NULL) {
-            /* It's a label, cutoff non-ascii */
-            if ((label = strpbrk(p, ": \t")) != NULL) *label = '\0';
-            strcpy(g_state.labels[g_state.n_labels].name, p);
-            g_state.labels[g_state.n_labels].pc = g_state.pc;
-            ++g_state.n_labels;
+        if ((lab = strchr(p, ':')) != NULL) {
+            /* It's a asm_label, cutoff non-ascii */
+            if ((lab = strpbrk(p, ": \t")) != NULL) *lab = '\0';
+            strcpy(state->labels[state->n_labels].name, p);
+            state->labels[state->n_labels].pc = state->pc;
+            ++state->n_labels;
             return;
         }
         mem = p; /* It's a memmonic */
         if ((p = strpbrk(p, " \t")) != NULL) {
-            struct operand final_op[4] = {0};
+            struct asm_operand final_op[4] = {0};
             char *op[8] = {NULL};
             *(p++) = '\0';
             while (isspace(*p)) ++p;
-            /* parse operands (variable length) */
-            for (unsigned i = 0; i < sizeof(op) / sizeof(op[0]); ++i) {
+            /* parse asm_operands (variable length) */
+            for (size_t i = 0; i < sizeof(op) / sizeof(op[0]); ++i) {
                 op[i] = p;
                 if ((p = strchr(p, ',')) != NULL) {
                     *(p++) = '\0';
                 } else
                     break;
             }
-            for (unsigned i = 0; i < sizeof(op) / sizeof(op[0]); ++i)
+            for (size_t i = 0; i < sizeof(op) / sizeof(op[0]); ++i)
                 if (op[i] != NULL)
-                    final_op[i] = asm_parse_operand(op[i]);
-            g_state.pc += asm_firstpass(mem, final_op);
+                    final_op[i] = asm_parse_asm_operand(op[i]);
+            state->pc += asm_firstpass(state, mem, final_op);
         } else {
-            struct operand final_op[4] = {0};
-            g_state.pc += asm_firstpass(mem, final_op);
+            struct asm_operand final_op[4] = {0};
+            state->pc += asm_firstpass(state, mem, final_op);
         }
     }
 }
 
-void asm_assemble(FILE* fp) {
-    char line[BUFSIZ];
-    while (fgets(line, sizeof line, fp) != NULL)
-        asm_process_line(line);
+#define MIN(A, B) (((A) > (B)) ? (B) : (A))
+void asm_assemble(asm_state_t* state) {
+    for (size_t i = 0; i < state->in_len; ) {
+        const char *p = memchr(state->in + i, '\n', state->in_len - i);
+        if (p != NULL) {
+            char line[BUFSIZ] = {0};
+            ptrdiff_t d = (ptrdiff_t)((p + 1) - (state->in + i));
+            memcpy(line, state->in + i, (size_t)d);
+            asm_process_line(state, line);
+            i += (size_t)d;
+            continue;
+        } else {
+            char line[BUFSIZ] = {0};
+            memcpy(line, state->in + i, state->in_len - i);
+            line[state->in_len - i + 1] = '\0';
+            asm_process_line(state, line);
+            break;
+        }
+    }
 }
 
-struct label asm_find_label(const char name[]) {
-    for (unsigned i = 0; i < g_state.n_labels; ++i) {
-        struct label *l = &g_state.labels[i];
+struct asm_label asm_find_label(asm_state_t* state, const char name[]) {
+    for (size_t i = 0; i < state->n_labels; ++i) {
+        struct asm_label *l = &state->labels[i];
         if (!strcmp(l->name, name))
             return *l;
     }
-    fprintf(stderr, "label %s not found\n", name);
+    fprintf(stderr, "asm_label %s not found\n", name);
     abort();
 }
 
-static void asm_fixup() {
-    for (unsigned i = 0; i < g_state.n_fixups; ++i) {
-        struct fixup *f = &g_state.fixups[i];
-        struct label l = asm_find_label(f->name);
+static void asm_fixup(asm_state_t* state) {
+    for (size_t i = 0; i < state->n_fixups; ++i) {
+        struct asm_fixup *f = &state->fixups[i];
+        struct asm_label l = asm_find_label(state, f->name);
         char ob[8], oc;
         switch (f->type) {
         case FIXUP_REL_O16S8: {
             int32_t rela = (int32_t)(l.pc - f->pc);
             ASM_ERROR_IF(rela < INT8_MIN || rela > INT8_MAX);
             /* 0<cb> 1<R8> 2<A8> 3<op> */
-            g_state.buf[f->offset + 2] = (int8_t)rela;
+            state->out[f->offset + 2] = (int8_t)rela;
             break;
         }
         default:
@@ -280,20 +285,52 @@ static void asm_fixup() {
     }
 }
 
+static void asm_initialise(asm_state_t* state) {
+    state->out = mmap(NULL, OUT_MAX_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    state->out_len = 0;
+    state->labels = mmap(NULL, LIST_MAX_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    state->n_labels = 0;
+    state->fixups = mmap(NULL, LIST_MAX_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    state->n_fixups = 0;
+}
+
+static void asm_add_input_file(asm_state_t* state, int fd) {
+    struct stat st;
+    fstat(fd, &st);
+    state->in = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE | MAP_PREFAULT_READ, fd, 0);
+    state->in_len = st.st_size;
+    state->fd_in = fd;
+}
+
+static void asm_add_output_file(asm_state_t* state, int fd) {
+    state->fd_out = fd;
+}
+
+static void asm_finish(asm_state_t* state) {
+    write(state->fd_out, state->out, state->out_len);
+    close(state->fd_out);
+    close(state->fd_in);
+
+    munmap(state->in, state->in_len);
+    munmap(state->out, OUT_MAX_SIZE);
+    munmap(state->fixups, LIST_MAX_SIZE);
+    munmap(state->labels, LIST_MAX_SIZE);
+}
+
 int main(int argc, char *argv[]) {
-    FILE* fp = stdin, *out = stdout;
+    static struct asm_state state = {0};
+    int fd_in = fileno(stdin), fd_out = fileno(stdout);
     if (argc <= 2) {
         fprintf(stderr, "%s <in> <out>\n", argv[0]);
         return EXIT_FAILURE;
     }
-    fp = fopen(argv[1], "rt");
-    out = fopen(argv[2], "wt");
-    /**/
-    asm_assemble(fp);
-    asm_fixup();
-    fwrite(g_state.buf, 1, g_state.count, out);
-    /**/
-    fclose(out);
-    fclose(fp);
+    fd_in = open(argv[1], O_RDONLY);
+    fd_out = open(argv[2], O_CREAT | O_TRUNC | O_WRONLY, 0755);
+    asm_initialise(&state);
+    asm_add_input_file(&state, fd_in);
+    asm_add_output_file(&state, fd_out);
+    asm_assemble(&state);
+    asm_fixup(&state);
+    asm_finish(&state);
     return EXIT_SUCCESS;
 }
