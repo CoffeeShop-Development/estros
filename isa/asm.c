@@ -95,6 +95,13 @@ static struct operand asm_parse_operand(const char *p) {
         if (*p == 'n') op.data.i |= 0x02, ++p;
         if (*p == 'z') op.data.i |= 0x04, ++p;
         if (*p == 'c') op.data.i |= 0x08, ++p;
+
+        /* g = !(C | Z) */
+        if (*p == 'g') op.data.i |= 0x08 | 0x04 | 0x01, ++p;
+        /* l = C */
+        if (*p == 'l') op.data.i |= 0x08, ++p;
+        /* e = Z */
+        if (*p == 'e') op.data.i |= 0x04, ++p;
     /* Stack pointer */
     } else if (*p == '$' && p[1] == 's' && p[2] == 'p') {
         op.type = OP_REG;

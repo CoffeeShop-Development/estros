@@ -196,7 +196,28 @@ static void cpu_do_alu1(sim_state_t* sim, uint8_t op, uint32_t addr, uint8_t rd,
     case 0x15: sim->cpu.r[rd] = cpu_read16(sim, addr); break;
     case 0x16: sim->cpu.r[rd] = cpu_read32(sim, addr); break;
     /*case 0x17: cpu_read32(sim, addr, sim->cpu.r[rd]); break;*/
-    case 0x18: sim->cpu.r[rd] = addr; break;
+    case 0x18: /* lea */
+        sim->cpu.r[rd] = addr;
+        break;
+    case 0x20: { /* cmp */
+        uint32_t r = cpu_i_add32(sim, a, b);
+        sim->cpu.flags &= ~(FLAGS_BIT_Z | FLAGS_BIT_N);
+        sim->cpu.flags |= r == 0 ? FLAGS_BIT_Z : 0;
+        sim->cpu.flags |= (int32_t)r < 0 ? FLAGS_BIT_N : 0;
+        sim->cpu.r[rd] = sim->cpu.flags;
+        break;
+    }
+    case 0x21: { /* cmpkp */
+        uint32_t old_flags = sim->cpu.flags;
+        uint32_t r = cpu_i_add32(sim, a, b);
+        sim->cpu.flags &= ~(FLAGS_BIT_Z | FLAGS_BIT_N);
+        sim->cpu.flags |= r == 0 ? FLAGS_BIT_Z : 0;
+        sim->cpu.flags |= (int32_t)r < 0 ? FLAGS_BIT_N : 0;
+        sim->cpu.r[rd] = sim->cpu.flags;
+        /* restore flags */
+        sim->cpu.flags = old_flags;
+        break;
+    }
     default:
         sim->cpu.r[rd] = cpu_do_basic_alu(sim, op, a, b);
         sim->cpu.flags &= ~(FLAGS_BIT_Z | FLAGS_BIT_N);
@@ -246,21 +267,21 @@ cpu_execute_result_t cpu_step(sim_state_t* sim) {
             bool cond = 0;
             switch ((op - 0x50) & 0x0f) {
             case 0: cond = sim->cpu.r[ra] == 0; break;
-            case 1: cond = sim->cpu.r[ra] != 0; break;
-            case 2: cond = (int32_t)sim->cpu.r[ra] >= 0; break;
-            case 3: cond = (int32_t)sim->cpu.r[ra] <= 0; break;
-            case 4: cond = sim->cpu.r[ra] == XM_ABI_T0; break;
-            case 5: cond = sim->cpu.r[ra] != XM_ABI_T0; break;
-            case 6: cond = sim->cpu.r[ra] > XM_ABI_T0; break;
-            case 7: cond = sim->cpu.r[ra] < XM_ABI_T0; break;
-            case 8: cond = sim->cpu.r[ra] >= XM_ABI_T0; break;
-            case 9: cond = sim->cpu.r[ra] <= XM_ABI_T0; break;
-            case 10: cond = sim->cpu.r[ra] == XM_ABI_T1; break;
-            case 11: cond = sim->cpu.r[ra] != XM_ABI_T1; break;
-            case 12: cond = sim->cpu.r[ra] > XM_ABI_T1; break;
-            case 13: cond = sim->cpu.r[ra] < XM_ABI_T1; break;
-            case 14: cond = sim->cpu.r[ra] >= XM_ABI_T1; break;
-            case 15: cond = sim->cpu.r[ra] <= XM_ABI_T1; break;
+            case 1: cond = true; break;
+            case 2: cond = (int32_t)sim->cpu.r[ra] > 0; break;
+            case 3: cond = sim->cpu.r[ra] > sim->cpu.pc; break;
+            case 4: cond = sim->cpu.r[ra] > sim->cpu.pc + rela; break;
+            case 5: cond = sim->cpu.r[ra] == 1; break;
+            case 6: cond = (int32_t)sim->cpu.r[ra] > 1; break;
+            case 7: cond = sim->cpu.r[ra] == ~0; break;
+            case 8: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T0]; break;
+            case 9: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T1]; break;
+            case 10: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T2]; break;
+            case 11: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T3]; break;
+            case 12: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T4]; break;
+            case 13: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T5]; break;
+            case 14: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T6]; break;
+            case 15: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T7]; break;
             }
             /* !, N, Z, C */
             cond = (cc & 0x02) != 0 ? (cond && (sim->cpu.flags & FLAGS_BIT_N) != 0) : cond;

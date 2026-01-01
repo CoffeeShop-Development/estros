@@ -4,6 +4,6 @@ memcpy:
     ldb $t0,$a0,0
     stb $a1,$t0,0
     sub $a2,$a2,1
-    bnz $a2,memcpy,?
+    bz $a2,memcpy,?!
 L1:
     #ret -- just halt

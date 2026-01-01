@@ -6,12 +6,12 @@
 
 #define PAGE_SIZE 8192
 
-#define FLAGS_BIT_N (0) /* Negative */
-#define FLAGS_BIT_Z (1) /* Zero */
-#define FLAGS_BIT_C (2) /* Carry */
-#define FLAGS_BIT_V (3) /* Underflow */
-#define FLAGS_BIT_O (4) /* Overflow */
-#define FLAGS_BIT_PG (5) /* Paging enabled */
+#define FLAGS_BIT_N (1 << 0) /* Negative */
+#define FLAGS_BIT_Z (1 << 1) /* Zero */
+#define FLAGS_BIT_C (1 << 2) /* Carry */
+#define FLAGS_BIT_V (1 << 3) /* Underflow */
+#define FLAGS_BIT_O (1 << 4) /* Overflow */
+#define FLAGS_BIT_PG (1 << 5) /* Paging enabled */
 
 /* First 4 bits of the first instruction byte */
 enum xm_cb0 {
@@ -108,28 +108,31 @@ static struct xm_inst_table_entry {
     {"ldl", XM_FORMAT_R4R4I8O8_IFHBS, 0x16},
     {"ldq", XM_FORMAT_R4R4I8O8_IFHBS, 0x17},
     {"lea", XM_FORMAT_R4R4I8O8_IFHBS, 0x18},
-    /* 0x18 - 0x3F hole */
+    /* 0x19 - 0x1F */
+    {"cmp", XM_FORMAT_R4R4I8O8_IFHBS, 0x20},
+    {"cmpkp", XM_FORMAT_R4R4I8O8_IFHBS, 0x21},
+    /* 0x21 - 0x3F hole */
     {"jmp", XM_FORMAT_AA16O8, 0x40},
     {"jmprel", XM_FORMAT_RA16O8, 0x41},
     {"call", XM_FORMAT_R4U4RA8O8, 0x42},
     {"ret", XM_FORMAT_U16O8, 0x43},
     /* 0x44 - 0x4F hole */
     {"bz", XM_FORMAT_R4U4RA8O8, 0x50},
-    {"bnz", XM_FORMAT_R4U4RA8O8, 0x51},
-    {"bgtez", XM_FORMAT_R4U4RA8O8, 0x52},
-    {"bltez", XM_FORMAT_R4U4RA8O8, 0x53},
-    {"beq0", XM_FORMAT_R4U4RA8O8, 0x54},
-    {"bne0", XM_FORMAT_R4U4RA8O8, 0x55},
-    {"bgt0", XM_FORMAT_R4U4RA8O8, 0x56},
-    {"blt0", XM_FORMAT_R4U4RA8O8, 0x57},
-    {"bgte0", XM_FORMAT_R4U4RA8O8, 0x58},
-    {"blte0", XM_FORMAT_R4U4RA8O8, 0x59},
-    {"beq1", XM_FORMAT_R4U4RA8O8, 0x5a},
-    {"bne1", XM_FORMAT_R4U4RA8O8, 0x5b},
-    {"bgt1", XM_FORMAT_R4U4RA8O8, 0x5c},
-    {"blt1", XM_FORMAT_R4U4RA8O8, 0x5d},
-    {"bgte1", XM_FORMAT_R4U4RA8O8, 0x5e},
-    {"blte1", XM_FORMAT_R4U4RA8O8, 0x5f},
+    {"bf", XM_FORMAT_R4U4RA8O8, 0x51},
+    {"bgzs", XM_FORMAT_R4U4RA8O8, 0x52},
+    {"bgpc", XM_FORMAT_R4U4RA8O8, 0x53},
+    {"bgpcrela", XM_FORMAT_R4U4RA8O8, 0x54},
+    {"bo", XM_FORMAT_R4U4RA8O8, 0x55},
+    {"bgoz", XM_FORMAT_R4U4RA8O8, 0x56},
+    {"bemax", XM_FORMAT_R4U4RA8O8, 0x57},
+    {"bet0", XM_FORMAT_R4U4RA8O8, 0x58},
+    {"bet1", XM_FORMAT_R4U4RA8O8, 0x59},
+    {"bet2", XM_FORMAT_R4U4RA8O8, 0x5a},
+    {"bet3", XM_FORMAT_R4U4RA8O8, 0x5b},
+    {"bet4", XM_FORMAT_R4U4RA8O8, 0x5c},
+    {"bet5", XM_FORMAT_R4U4RA8O8, 0x5d},
+    {"bet6", XM_FORMAT_R4U4RA8O8, 0x5e},
+    {"bet7", XM_FORMAT_R4U4RA8O8, 0x5f},
     /* 0x46 - 0x4F hole */
 };
 #define XM_INST_TABLE_COUNT (sizeof(xm_inst_table) / sizeof(xm_inst_table[0]))
