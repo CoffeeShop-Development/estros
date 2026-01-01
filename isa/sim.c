@@ -164,70 +164,6 @@ static int32_t cpu_i_sub32(sim_state_t* sim, int32_t a, int32_t b) {
     sim->cpu.flags |= (result & ~UINT32_MAX) != 0 ? FLAGS_BIT_C : 0;
     return (int32_t)result;
 }
-
-static uint32_t cpu_do_basic_alu(sim_state_t* sim, uint8_t op, uint32_t a, uint32_t b) {
-    switch (op & 0x7f) {
-    case 0x00: return cpu_i_add32(sim, a, b);
-    case 0x01: return cpu_i_sub32(sim, a, b);
-    case 0x02: return a * b;
-    case 0x03: return a / b;
-    case 0x04: return a % b;
-    case 0x05: return (int32_t)a * (int32_t)b;
-    case 0x06: return a & b;
-    case 0x07: return a ^ b;
-    case 0x08: return a | b;
-    case 0x09: return a << b;
-    case 0x0a: return a >> b;
-    case 0x0b: return cpu_i_popcount(a + b);
-    case 0x0c: return cpu_i_clz(a + b);
-    case 0x0d: return cpu_i_clo(a + b);
-    case 0x0e: return cpu_i_bswap(a + b);
-    case 0x0f: return 32 - cpu_i_popcount(a + b);
-    default: fprintf(stderr, "unknown %x\n", op); break;
-    }
-}
-
-static void cpu_do_alu1(sim_state_t* sim, uint8_t op, uint32_t addr, uint8_t rd, uint32_t a, uint32_t b) {
-    switch (op & 0x7f) {
-    case 0x10: cpu_write8(sim, addr, sim->cpu.r[rd]); break;
-    case 0x11: cpu_write16(sim, addr, sim->cpu.r[rd]); break;
-    case 0x12: cpu_write32(sim, addr, sim->cpu.r[rd]); break;
-    /*case 0x13: cpu_write32(sim, addr, sim->cpu.r[rd]); break;*/
-    case 0x14: sim->cpu.r[rd] = cpu_read8(sim, addr); break;
-    case 0x15: sim->cpu.r[rd] = cpu_read16(sim, addr); break;
-    case 0x16: sim->cpu.r[rd] = cpu_read32(sim, addr); break;
-    /*case 0x17: cpu_read32(sim, addr, sim->cpu.r[rd]); break;*/
-    case 0x18: /* lea */
-        sim->cpu.r[rd] = addr;
-        break;
-    case 0x20: { /* cmp */
-        uint32_t r = cpu_i_add32(sim, a, b);
-        sim->cpu.flags &= ~(FLAGS_BIT_Z | FLAGS_BIT_N);
-        sim->cpu.flags |= r == 0 ? FLAGS_BIT_Z : 0;
-        sim->cpu.flags |= (int32_t)r < 0 ? FLAGS_BIT_N : 0;
-        sim->cpu.r[rd] = sim->cpu.flags;
-        break;
-    }
-    case 0x21: { /* cmpkp */
-        uint32_t old_flags = sim->cpu.flags;
-        uint32_t r = cpu_i_add32(sim, a, b);
-        sim->cpu.flags &= ~(FLAGS_BIT_Z | FLAGS_BIT_N);
-        sim->cpu.flags |= r == 0 ? FLAGS_BIT_Z : 0;
-        sim->cpu.flags |= (int32_t)r < 0 ? FLAGS_BIT_N : 0;
-        sim->cpu.r[rd] = sim->cpu.flags;
-        /* restore flags */
-        sim->cpu.flags = old_flags;
-        break;
-    }
-    default:
-        sim->cpu.r[rd] = cpu_do_basic_alu(sim, op, a, b);
-        sim->cpu.flags &= ~(FLAGS_BIT_Z | FLAGS_BIT_N);
-        sim->cpu.flags |= sim->cpu.r[rd] == 0 ? FLAGS_BIT_Z : 0;
-        sim->cpu.flags |= (int32_t)sim->cpu.r[rd] < 0 ? FLAGS_BIT_N : 0;   
-        break;
-    }
-}
-
 static float cpu_i_maxf(float a, float b) {
     return a > b ? a : b;
 }
@@ -238,163 +174,667 @@ static float cpu_i_clampf(float a, float low, float upper) {
     return cpu_i_minf(cpu_i_maxf(a, low), upper);
 }
 
-float cpu_do_fpu1(sim_state_t* sim, uint8_t op, uint8_t ra, uint8_t rb, uint8_t rc) {
-    float a = sim->cpu.f[ra];
-    float b = sim->cpu.f[rb];
-    float c = sim->cpu.f[rc];
-    switch (op) {
-    case 0x00: return (a + b) + c;
-    case 0x01: return (a + b) - c;
-    case 0x02: return (a + b) / c;
-    case 0x03: return (a + b) * c;
-    case 0x04: return fmodf(a + b, c);
-    case 0x05: return a + b * c;
-    case 0x06: return a - b * c;
-    case 0x07: return sqrtf(a + b + c);
-    case 0x08: return hypotf(a + b, c);
-    case 0x09: return sqrtf(a * a + b * b + c * c);
-    case 0x0a: return fabs(a + b + c);
-    case 0x0b: return signbit(a + b + c);
-    case 0x0c: return -fabs(a + b + c);
-    case 0x0d: return cosf(a + b + c);
-    case 0x0e: return sinf(a + b + c);
-    case 0x0f: return tanf(a + b + c);
-    case 0x10: return acosf(a + b + c);
-    case 0x11: return asinf(a + b + c);
-    case 0x12: return atanf(a + b + c);
-    case 0x13: return cbrtf(a + b + c);
-    case 0x14: return y0(a + b + c);
-    case 0x15: return y1(a + b + c);
-    case 0x16: return j0(a + b + c);
-    case 0x17: return j1(a + b + c);
-    case 0x18: return expf(a + b + c);
-    case 0x19: return 1.f / sqrtf(a + b + c);
-    case 0x1a: return 1.f / cbrtf(a + b + c);
-    case 0x1b: return powf(a + b, c);
-    case 0x1c: return powf(powf(a, b), c);
-    case 0x1d: return cpu_i_maxf(a + b, c);
-    case 0x1e: return cpu_i_minf(a + b, c);
-    case 0x1f: return cpu_i_clampf(a, b, c);
-    case 0x20: return 1.f / (a + b + c);
-    case 0x21: return M_PI * (a + b + c);
-    case 0x22: return M_E * (a + b + c);
-    case 0x23: return M_PI_2 * (a + b + c);
-    case 0x24: return (a + b + c) * M_PI / 180.f;
-    case 0x25: return (a + b + c) * 180.f / M_PI;
-    case 0x26: return a > b ? c : 0.f;
-    case 0x27: return a + b > 0.f ? c : 0.f;
-    case 0x28: return gammaf(a + b + c);
-    case 0x29: return lgammaf(a + b + c);
-    /* complex isa is TODO */
-    default: return 0.f;
+#define CPU_INSTRUCTION_FN(NAME) static cpu_execute_result_t cpu_exec_##NAME(sim_state_t* sim, uint8_t id[])
+#define CPU_ALU_UPDATE_FLAGS(VALUE) \
+    sim->cpu.flags &= ~(FLAGS_BIT_Z | FLAGS_BIT_N); \
+    sim->cpu.flags |= (VALUE) == 0 ? FLAGS_BIT_Z : 0; \
+    sim->cpu.flags |= (int32_t)(VALUE) < 0 ? FLAGS_BIT_N : 0;
+
+struct cpu_decode_f4x4 {
+    float *dp;
+    float v[3];
+};
+static struct cpu_decode_f4x4 cpu_decode_f4x4(sim_state_t* sim, uint8_t id[]) {
+    struct cpu_decode_f4x4 ds;
+    ds.dp = &sim->cpu.f[id[1] & 0x0f];
+    ds.v[0] = sim->cpu.f[(id[1] >> 4) & 0x0f];
+    ds.v[1] = sim->cpu.f[id[2] & 0x0f];
+    ds.v[2] = sim->cpu.f[(id[2] >> 4) & 0x0f];
+    return ds;
+}
+CPU_INSTRUCTION_FN(fadd3) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = ds.v[0] + ds.v[1] + ds.v[2];
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fsub3) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1]) - ds.v[2];
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fdiv3) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1]) / ds.v[2];
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fmul3) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1]) / ds.v[2];
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fmod3) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = fmod(ds.v[0] + ds.v[1], ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fmadd) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = ds.v[0] + ds.v[1] * ds.v[2];
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fmsub) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = ds.v[0] - ds.v[1] * ds.v[2];
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fsqrt3) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = sqrtf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fhyp) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = hypotf(ds.v[0] + ds.v[1], ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fnorm) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = sqrtf(ds.v[0] * ds.v[0] + ds.v[1] * ds.v[1] + ds.v[2] * ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fabs) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = fabs(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fsign) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = signbit(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fnabs) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = -fabs(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fcos) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = cosf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fsin) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = sinf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(ftan) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = tanf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(facos) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = acosf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fatan) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = atanf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fasin) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = asinf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fcbrt) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = cbrtf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fy0) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = y0f(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fy1) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = y1f(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fj0) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = j0f(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fj1) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = j1f(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fexp) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = expf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(frsqrt) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = 1.f / sqrtf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(frcbrt) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = 1.f / cbrtf (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fpow2) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = powf(ds.v[0] + ds.v[1], ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fpow3) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = powf(powf(ds.v[0], ds.v[1]), ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fmax) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = cpu_i_maxf(ds.v[0] + ds.v[1], ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fmin) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = cpu_i_minf(ds.v[0] + ds.v[1], ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fclamp) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = cpu_i_clampf(ds.v[0], ds.v[1], ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(finv) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = 1.f / (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fconstpi) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = M_PI * (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fconste) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = M_E * (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fconstpi2) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = M_PI_2 * (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(frad) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]) * M_PI / 180.f;
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fdeg) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]) * 180.f / M_PI;
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fsel) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fsel2) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fgamma) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = gammaf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(flgamma) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = lgammaf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(faddcrr) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fsubcrr) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fdivcrr) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fmulcrr) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fmodcrr) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(faddcri) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fsubcri) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fdivcri) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fmulcri) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fmodcri) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+struct cpu_decode_r4x2i8_ifhbs {
+    uint32_t *dp;
+    uint32_t addr;
+    uint32_t a;
+    uint32_t b;
+};
+static struct cpu_decode_r4x2i8_ifhbs cpu_decode_r4x2i8_ifhbs(sim_state_t* sim, uint8_t id[]) {
+    struct cpu_decode_r4x2i8_ifhbs ds;
+    if ((id[3] & 0x80) != 0) {
+        uint8_t rd = id[1] & 0x0f;
+        uint8_t ra = (id[1] >> 4) & 0x0f;
+        uint8_t imm = id[2];
+        ds.addr = sim->cpu.r[ra] + imm * 4;
+        ds.dp = &sim->cpu.r[rd];
+        ds.a = sim->cpu.r[ra];
+        ds.b = imm;
+    } else {
+        uint8_t rd = id[1] & 0x0f;
+        uint8_t ra = (id[1] >> 4) & 0x0f;
+        uint8_t rb = id[2] & 0x0f;
+        uint8_t imm = (id[2] >> 4) & 0x0f;
+        ds.addr = sim->cpu.r[ra] + sim->cpu.r[rb] * imm * 4;
+        ds.dp = &sim->cpu.r[rd];
+        ds.a = sim->cpu.r[ra];
+        ds.b = sim->cpu.r[rb] + imm;
+    }
+    return ds;
+}
+CPU_INSTRUCTION_FN(add) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = ds.a + ds.b;
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(sub) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = ds.a - ds.b;
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(mul) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = ds.a * ds.b;
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(div) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = ds.a / ds.b;
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(rem) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = ds.a % ds.b;
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(imul) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = (int32_t)ds.a * (int32_t)ds.b;
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(and) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = ds.a & ds.b;
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(xor) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = ds.a ^ ds.b;
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(or) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = ds.a | ds.b;
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(shl) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = ds.a << ds.b;
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(shr) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = ds.a >> ds.b;
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(pcnt) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = cpu_i_popcount(ds.a + ds.b);
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(clz) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = cpu_i_clz(ds.a + ds.b);
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(clo) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = cpu_i_clo(ds.a + ds.b);
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(bswap) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = cpu_i_bswap(ds.a + ds.b);
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(ipcnt) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = 32 - cpu_i_popcount(ds.a + ds.b);
+    CPU_ALU_UPDATE_FLAGS(*ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(stb) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    cpu_write8(sim, ds.addr, *ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(stw) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    cpu_write16(sim, ds.addr, *ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(stl) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    cpu_write32(sim, ds.addr, *ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(stq) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    cpu_write32(sim, ds.addr, *ds.dp);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(ldb) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = cpu_read8(sim, ds.addr);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(ldw) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = cpu_read16(sim, ds.addr);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(ldl) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = cpu_read32(sim, ds.addr);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(ldq) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = cpu_read32(sim, ds.addr);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(lea) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    *ds.dp = ds.addr;
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(cmp) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    uint32_t r = cpu_i_add32(sim, ds.a, ds.b);
+    sim->cpu.flags &= ~(FLAGS_BIT_Z | FLAGS_BIT_N);
+    sim->cpu.flags |= r == 0 ? FLAGS_BIT_Z : 0;
+    sim->cpu.flags |= (int32_t)r < 0 ? FLAGS_BIT_N : 0;
+    *ds.dp = sim->cpu.flags;
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+} 
+CPU_INSTRUCTION_FN(cmpkp) {
+    struct cpu_decode_r4x2i8_ifhbs ds = cpu_decode_r4x2i8_ifhbs(sim, id);
+    uint32_t old_flags = sim->cpu.flags;
+    uint32_t r = cpu_i_add32(sim, ds.a, ds.b);
+    sim->cpu.flags &= ~(FLAGS_BIT_Z | FLAGS_BIT_N);
+    sim->cpu.flags |= r == 0 ? FLAGS_BIT_Z : 0;
+    sim->cpu.flags |= (int32_t)r < 0 ? FLAGS_BIT_N : 0;
+    *ds.dp = sim->cpu.flags;
+    sim->cpu.flags = old_flags; /* restore flags */
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(jmp) {
+    sim->cpu.pc = (((uint32_t)id[1]) << 8) | id[2];
+    ++sim->perf.jumps;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(jmprel) {
+    int32_t rela = (int32_t)(int16_t)((((uint16_t)id[1]) << 8) | id[2]);
+    sim->cpu.pc += rela;
+    ++sim->perf.jumps;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(call) {
+    uint8_t ra = id[1];
+    int32_t rela = (int32_t)(int8_t)id[2];
+    sim->cpu.pc = sim->cpu.r[ra] + rela;
+    sim->cpu.r[XM_ABI_RA] = sim->cpu.pc + 4;
+    ++sim->perf.jumps;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(ret) {
+    sim->cpu.pc = sim->cpu.r[XM_ABI_RA];
+    ++sim->perf.jumps;
+    return CPUE_CONTINUE;
+}
+static cpu_execute_result_t cpu_exec_common_b(sim_state_t *sim, uint8_t id[]) {
+    uint8_t ra = id[1] & 0x0f;
+    uint8_t cc = (id[1] >> 4);
+    int32_t rela = (int32_t)(int8_t)id[2];
+    bool cond = 0;
+    switch ((id[3] - 0x50) & 0x0f) {
+    case 0: cond = sim->cpu.r[ra] == 0; break;
+    case 1: cond = true; break;
+    case 2: cond = (int32_t)sim->cpu.r[ra] > 0; break;
+    case 3: cond = sim->cpu.r[ra] > sim->cpu.pc; break;
+    case 4: cond = sim->cpu.r[ra] > sim->cpu.pc + rela; break;
+    case 5: cond = sim->cpu.r[ra] == 1; break;
+    case 6: cond = (int32_t)sim->cpu.r[ra] > 1; break;
+    case 7: cond = sim->cpu.r[ra] == ~0; break;
+    case 8: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T0]; break;
+    case 9: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T1]; break;
+    case 10: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T2]; break;
+    case 11: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T3]; break;
+    case 12: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T4]; break;
+    case 13: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T5]; break;
+    case 14: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T6]; break;
+    case 15: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T7]; break;
+    }
+    /* !, N, Z, C */
+    cond = (cc & 0x02) != 0 ? (cond && (sim->cpu.flags & FLAGS_BIT_N) != 0) : cond;
+    cond = (cc & 0x04) != 0 ? (cond && (sim->cpu.flags & FLAGS_BIT_Z) != 0) : cond;
+    cond = (cc & 0x08) != 0 ? (cond && (sim->cpu.flags & FLAGS_BIT_C) != 0) : cond;
+    cond = (cc & 0x01) != 0 ? !cond : cond; /* Invert condition flag */
+    sim->cpu.pc += cond ? rela : 4;
+    cond ? ++sim->perf.b_taken : ++sim->perf.b_misses;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(bz) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(b) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(bgzs) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(bgpc) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(bgpcrela) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(bo) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(bgoz) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(bemax) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(bet0) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(bet1) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(bet2) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(bet3) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(bet4) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(bet5) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(bet6) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(bet7) { return cpu_exec_common_b(sim, id); }
+CPU_INSTRUCTION_FN(halt) {
+    printf("halted at %8x\n", sim->cpu.pc);
+    return CPUE_HALT;
+}
+
+static bool cpu_match_inst(sim_state_t* sim, uint8_t id[], enum xm_inst_format format, uint8_t op) {
+    enum xm_cb0 cb0 = xm_get_cb0_from_format(format);
+    switch (cb0) {
+    case XM_CB_INTEGER:
+    case XM_CB_FLOAT:
+    case XM_CB_CONTROL:
+    case XM_CB_TILE:
+        return (format == XM_FORMAT_R4R4I8O8_IFHBS && (id[3] & 0x7f) == op)
+            || (format != XM_FORMAT_R4R4I8O8_IFHBS && id[3] == op);
+    case XM_CB_DEBUG:
+        return (id[0] >> 4) == op;
+    default:
+        abort();
     }
 }
 
 cpu_execute_result_t cpu_step(sim_state_t* sim) {
-    uint8_t id[8]; /* Instruction decode */
+    uint8_t id[8]; /* Instruction ds */
 
     ++sim->perf.ticks;
 
     id[0] = cpu_read8(sim, sim->cpu.pc);
-    switch (id[0] & 0x0f) {
-    case XM_CB_INTEGER: {
-        id[1] = cpu_read8(sim, sim->cpu.pc + 1);
-        id[2] = cpu_read8(sim, sim->cpu.pc + 2);
-        id[3] = cpu_read8(sim, sim->cpu.pc + 3);
+    id[1] = cpu_read8(sim, sim->cpu.pc + 1);
+    id[2] = cpu_read8(sim, sim->cpu.pc + 2);
+    id[3] = cpu_read8(sim, sim->cpu.pc + 3);
 
-        uint8_t op = id[3];
-        if (op == 0x40) { /* jmp */
-            sim->cpu.pc = (((uint32_t)id[1]) << 8) | id[2];
-            ++sim->perf.jumps;
-            return CPUE_CONTINUE;
-        } else if (op == 0x41) { /* jmprel */
-            int32_t rela = (int32_t)(int16_t)((((uint16_t)id[1]) << 8) | id[2]);
-            sim->cpu.pc += rela;
-            ++sim->perf.jumps;
-            return CPUE_CONTINUE;
-        } else if (op == 0x42) { /* call */
-            uint8_t ra = id[1];
-            int32_t rela = (int32_t)(int8_t)id[2];
-            sim->cpu.pc = sim->cpu.r[ra] + rela;
-            sim->cpu.r[XM_ABI_RA] = sim->cpu.pc + 4;
-            ++sim->perf.jumps;
-            return CPUE_CONTINUE;
-        } else if (op == 0x43) { /* ret */
-            sim->cpu.pc = sim->cpu.r[XM_ABI_RA];
-            ++sim->perf.jumps;
-            return CPUE_CONTINUE;
-        } else if (op >= 0x50 && op <= 0x5F) { /* b */
-            uint8_t ra = id[1] & 0x0f;
-            uint8_t cc = (id[1] >> 4);
-            int32_t rela = (int32_t)(int8_t)id[2];
-            bool cond = 0;
-            switch ((op - 0x50) & 0x0f) {
-            case 0: cond = sim->cpu.r[ra] == 0; break;
-            case 1: cond = true; break;
-            case 2: cond = (int32_t)sim->cpu.r[ra] > 0; break;
-            case 3: cond = sim->cpu.r[ra] > sim->cpu.pc; break;
-            case 4: cond = sim->cpu.r[ra] > sim->cpu.pc + rela; break;
-            case 5: cond = sim->cpu.r[ra] == 1; break;
-            case 6: cond = (int32_t)sim->cpu.r[ra] > 1; break;
-            case 7: cond = sim->cpu.r[ra] == ~0; break;
-            case 8: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T0]; break;
-            case 9: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T1]; break;
-            case 10: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T2]; break;
-            case 11: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T3]; break;
-            case 12: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T4]; break;
-            case 13: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T5]; break;
-            case 14: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T6]; break;
-            case 15: cond = sim->cpu.r[ra] == sim->cpu.r[XM_ABI_T7]; break;
-            }
-            /* !, N, Z, C */
-            cond = (cc & 0x02) != 0 ? (cond && (sim->cpu.flags & FLAGS_BIT_N) != 0) : cond;
-            cond = (cc & 0x04) != 0 ? (cond && (sim->cpu.flags & FLAGS_BIT_Z) != 0) : cond;
-            cond = (cc & 0x08) != 0 ? (cond && (sim->cpu.flags & FLAGS_BIT_C) != 0) : cond;
-            cond = (cc & 0x01) != 0 ? !cond : cond; /* Invert condition flag */
-            sim->cpu.pc += cond ? rela : 4;
-            cond ? ++sim->perf.b_taken : ++sim->perf.b_misses;
-            return CPUE_CONTINUE;
-        } else if ((op & 0x80) != 0) {
-            uint8_t rd = id[1] & 0x0f;
-            uint8_t ra = (id[1] >> 4) & 0x0f;
-            uint8_t imm = id[2];
-            uint32_t addr = sim->cpu.r[ra] + imm * 4;
-            cpu_do_alu1(sim, op, addr, rd, sim->cpu.r[ra], imm);
-        } else {
-            uint8_t rd = id[1] & 0x0f;
-            uint8_t ra = (id[1] >> 4) & 0x0f;
-            uint8_t rb = id[2] & 0x0f;
-            uint8_t imm = (id[2] >> 4) & 0x0f;
-            uint32_t addr = sim->cpu.r[ra] + sim->cpu.r[rb] * imm * 4;
-            cpu_do_alu1(sim, op, addr, rd, sim->cpu.r[ra], sim->cpu.r[rb] + imm);
-        }
-        sim->cpu.pc += 4;
-        return CPUE_CONTINUE;
+#define XM_INST_ELEM(NAME, FORMAT, OP) \
+    else if (cpu_match_inst(sim, id, FORMAT, OP)) { \
+        printf(" --> " #NAME "\n"); \
+        return cpu_exec_##NAME(sim, id); \
     }
-    case XM_CB_FLOAT: {
-        uint8_t op = id[3];
-        uint8_t rd = id[1] & 0x0f;
-        uint8_t ra = (id[1] >> 4) & 0x0f;
-        uint8_t rb = id[2] & 0x0f;
-        uint8_t rc = (id[2] >> 4) & 0x0f;
-        switch (op) {
-        default:
-            sim->cpu.f[rd] = cpu_do_fpu1(sim, op, ra, rb, rc);
-            break;
-        }
+
+    if (0) {}
+    XM_INST_LIST
+    else {
+
     }
-    case XM_CB_DEBUG: {
-        switch (id[0] >> 4) {
-        case 0x0f: {
-            printf("halted at %8x\n", sim->cpu.pc);
-            return CPUE_HALT;
-        }
-        }
-        assert(0);
-        break;
-    }
-    }
-    return CPUE_HALT;
+#undef XM_INST_ELEM
 }
 
 int main(int argc, char *argv[]) {

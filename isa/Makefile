@@ -44,7 +44,7 @@ xm_dis: dis.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 xm_sim: sim.o
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@ -lm
 
 .o: .c
 	$(CC) $(CFLAGS) -c $< -o $@
