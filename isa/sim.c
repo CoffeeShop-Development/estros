@@ -1,3 +1,4 @@
+#include <complex.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -444,63 +445,126 @@ CPU_INSTRUCTION_FN(flgamma) {
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 }
+CPU_INSTRUCTION_FN(fround) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = roundf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(ffloor) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = floorf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fceil) {
+    struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
+    *ds.dp = ceilf(ds.v[0] + ds.v[1] + ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
 CPU_INSTRUCTION_FN(faddcrr) {
     struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
-    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    float complex c = ds.v[0] + ds.v[1] * I;
+    *ds.dp = creal(c + ds.v[2]);
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 }
 CPU_INSTRUCTION_FN(fsubcrr) {
     struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
-    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    float complex c = ds.v[0] + ds.v[1] * I;
+    *ds.dp = creal(c - ds.v[2]);
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 }
 CPU_INSTRUCTION_FN(fdivcrr) {
     struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
-    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    float complex c = ds.v[0] + ds.v[1] * I;
+    *ds.dp = creal(c / ds.v[2]);
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 }
 CPU_INSTRUCTION_FN(fmulcrr) {
     struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
-    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    float complex c = ds.v[0] + ds.v[1] * I;
+    *ds.dp = creal(c * ds.v[2]);
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 }
-CPU_INSTRUCTION_FN(fmodcrr) {
+CPU_INSTRUCTION_FN(fsqrtcrr) {
     struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
-    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    float complex c = ds.v[0] + ds.v[1] * I;
+    *ds.dp = creal(csqrtf(c) * ds.v[2]);
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 }
 CPU_INSTRUCTION_FN(faddcri) {
     struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
-    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    float complex c = ds.v[0] + ds.v[1] * I;
+    *ds.dp = cimag(c + ds.v[2]);
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 }
 CPU_INSTRUCTION_FN(fsubcri) {
     struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
-    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    float complex c = ds.v[0] + ds.v[1] * I;
+    *ds.dp = cimag(c - ds.v[2]);
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 }
 CPU_INSTRUCTION_FN(fdivcri) {
     struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
-    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    float complex c = ds.v[0] + ds.v[1] * I;
+    *ds.dp = cimag(c / ds.v[2]);
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 }
 CPU_INSTRUCTION_FN(fmulcri) {
     struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
-    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    float complex c = ds.v[0] + ds.v[1] * I;
+    *ds.dp = cimag(c * ds.v[2]);
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 }
-CPU_INSTRUCTION_FN(fmodcri) {
+CPU_INSTRUCTION_FN(fsqrtcri) {
     struct cpu_decode_f4x4 ds = cpu_decode_f4x4(sim, id);
-    *ds.dp = (ds.v[0] + ds.v[1] + ds.v[2]);
+    float complex c = ds.v[0] + ds.v[1] * I;
+    *ds.dp = cimag(csqrtf(c) * ds.v[2]);
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+struct cpu_decode_r4f4x3 {
+    uint8_t rd, ra, rb, rc;
+};
+static struct cpu_decode_r4f4x3 cpu_decode_r4f4x3(sim_state_t* sim, uint8_t id[]) {
+    struct cpu_decode_r4f4x3 ds;
+    ds.rd = id[1] & 0x0f;
+    ds.ra = (id[1] >> 4) & 0x0f;
+    ds.rb = id[2] & 0x0f;
+    ds.rc = (id[2] >> 4) & 0x0f;
+    return ds;
+}
+CPU_INSTRUCTION_FN(fcvti) {
+    struct cpu_decode_r4f4x3 ds = cpu_decode_r4f4x3(sim, id);
+    *(float*)(&sim->cpu.r[ds.rd]) = sim->cpu.f[ds.ra] + sim->cpu.f[ds.rb] + sim->cpu.f[ds.rc];
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(icvtf) {
+    struct cpu_decode_r4f4x3 ds = cpu_decode_r4f4x3(sim, id);
+    *(uint32_t*)(&sim->cpu.f[ds.rd]) = sim->cpu.r[ds.ra] + sim->cpu.r[ds.rb] + sim->cpu.r[ds.rc];
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(fcvtri) {
+    struct cpu_decode_r4f4x3 ds = cpu_decode_r4f4x3(sim, id);
+    sim->cpu.r[ds.rd] = sim->cpu.f[ds.ra] + sim->cpu.f[ds.rb] + sim->cpu.f[ds.rc];
+    sim->cpu.pc += 4;
+    return CPUE_CONTINUE;
+}
+CPU_INSTRUCTION_FN(icvtrf) {
+    struct cpu_decode_r4f4x3 ds = cpu_decode_r4f4x3(sim, id);
+    sim->cpu.f[ds.rd] = sim->cpu.r[ds.ra] + sim->cpu.r[ds.rb] + sim->cpu.r[ds.rc];
     sim->cpu.pc += 4;
     return CPUE_CONTINUE;
 }

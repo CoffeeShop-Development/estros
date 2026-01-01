@@ -15,34 +15,34 @@
 Calculates `$rD = $rA + ($rB + imm8)`
 
 ### `sub $rD,$rA,$rB,imm8`
-Calculates `$rD = $rA + ($rB + imm8)`
+Calculates `$rD = $rA - ($rB + imm8)`
 
 ### `mul $rD,$rA,$rB,imm8`
-Calculates `$rD = $rA + ($rB + imm8)`
+Calculates `$rD = $rA * ($rB + imm8)`
 
 ### `div $rD,$rA,$rB,imm8`
-Calculates `$rD = $rA + ($rB + imm8)`
+Calculates `$rD = $rA / ($rB + imm8)`
 
 ### `rem $rD,$rA,$rB,imm8`
-Calculates `$rD = $rA + ($rB + imm8)`
+Calculates `$rD = $rA % ($rB + imm8)`
 
 ### `imul $rD,$rA,$rB,imm8`
-Calculates `$rD = $rA + ($rB + imm8)`
+Calculates `$rD = signed($rA) * signed($rB + imm8)`
 
 ### `and $rD,$rA,$rB,imm8`
-Calculates `$rD = $rA + ($rB + imm8)`
+Calculates `$rD = $rA & ($rB + imm8)`
 
 ### `xor $rD,$rA,$rB,imm8`
-Calculates `$rD = $rA + ($rB + imm8)`
+Calculates `$rD = $rA ^ ($rB + imm8)`
 
 ### `or $rD,$rA,$rB,imm8`
-Calculates `$rD = $rA + ($rB + imm8)`
+Calculates `$rD = $rA | ($rB + imm8)`
 
 ### `shl $rD,$rA,$rB,imm8`
-Calculates `$rD = $rA + ($rB + imm8)`
+Calculates `$rD = $rA << ($rB + imm8)`
 
 ### `shr $rD,$rA,$rB,imm8`
-Calculates `$rD = $rA + ($rB + imm8)`
+Calculates `$rD = $rA >> ($rB + imm8)`
 
 ### `popcnt $rD,$rA,$rB,imm8`
 Calculates `$rD = popcount($rA + ($rB + imm8))`
@@ -256,6 +256,15 @@ Computes `$fD = gamma($fA + $fB + $fC)`
 ### `flgamma $fD,$fA,$fB,$fC`
 Computes `$fD = lgamma($fA + $fB + $fC)`
 
+### `fround $fD,$fA,$fB,$fC`
+Computes `$fD = round($fA + $fB + $fC)`
+
+### `ffloor $fD,$fA,$fB,$fC`
+Computes `$fD = floor($fA + $fB + $fC)`
+
+### `fceil $fD,$fA,$fB,$fC`
+Computes `$fD = ceil($fA + $fB + $fC)`
+
 ## Complex instruction set
 
 ### `faddcrr $fD,$fA,$fB,$fC`
@@ -282,8 +291,22 @@ Computes `$fD = R(complex($fA, $fB) * $fC)`
 ### `fmulcri $fD,$fA,$fB,$fC`
 Computes `$fD = I(complex($fA, $fB) * $fC)`
 
-### `fmodcrr $fD,$fA,$fB,$fC`
-Computes `$fD = R(mod(complex($fA, $fB), $fC))`
+### `fsqrtcrr $fD,$fA,$fB,$fC`
+Computes `$fD = R(csqrt(complex($fA, $fB) + $fC))`
 
-### `fmodcri $fD,$fA,$fB,$fC`
-Computes `$fD = I(mod(complex($fA, $fB), $fC))`
+### `fsqrtcri $fD,$fA,$fB,$fC`
+Computes `$fD = I(csqrt(complex($fA, $fB) + $fC))`
+
+## Conversion instruction set
+
+### `fcvti $rD,$fA,$fB,$fC`
+Computes `$rD = bit_pattern($fA + $fB + $fC)`, doesn't do rounding
+
+### `icvtf $fD,$rA,$rB,$rC`
+Computes `$fD = bit_pattern($rA + $rB + $rC)`, doesn't do rounding
+
+### `fcvtri $rD,$fA,$fB,$fC`
+Computes `$rD = round($fA + $fB + $fC)`
+
+### `icvtrf $fD,$rA,$rB,$rC`
+Computes `$fD = round($rA + $rB + $rC)`

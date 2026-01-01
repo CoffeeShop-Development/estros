@@ -78,6 +78,8 @@ enum xm_inst_format {
     XM_FORMAT_U16O8,
     /* <Float> Fd(4) Fa(4) Fb(4) Fc(4) */
     XM_FORMAT_F4F4F4F4,
+    /* <Float> Rd(4) Fa(4) Fb(4) Fc(4) */
+    XM_FORMAT_R4F4F4F4,
     /* <Debug> */
     XM_FORMAT_D8
 };
@@ -94,6 +96,7 @@ static enum xm_cb0 xm_get_cb0_from_format(enum xm_inst_format f) {
     case XM_FORMAT_U16O8:
         return XM_CB_INTEGER;
     case XM_FORMAT_F4F4F4F4:
+    case XM_FORMAT_R4F4F4F4:
         return XM_CB_FLOAT;
     case XM_FORMAT_D8:
         return XM_CB_DEBUG;
@@ -196,18 +199,26 @@ static enum xm_cb0 xm_get_cb0_from_format(enum xm_inst_format f) {
     XM_INST_ELEM(fsel2, XM_FORMAT_F4F4F4F4, 0x27) \
     XM_INST_ELEM(fgamma, XM_FORMAT_F4F4F4F4, 0x28) \
     XM_INST_ELEM(flgamma, XM_FORMAT_F4F4F4F4, 0x29) \
+    XM_INST_ELEM(fround, XM_FORMAT_F4F4F4F4, 0x2a) \
+    XM_INST_ELEM(ffloor, XM_FORMAT_F4F4F4F4, 0x2b) \
+    XM_INST_ELEM(fceil, XM_FORMAT_F4F4F4F4, 0x2c) \
     /* Complex ISA */ \
     XM_INST_ELEM(faddcrr, XM_FORMAT_F4F4F4F4, 0x30) \
     XM_INST_ELEM(fsubcrr, XM_FORMAT_F4F4F4F4, 0x31) \
     XM_INST_ELEM(fdivcrr, XM_FORMAT_F4F4F4F4, 0x32) \
     XM_INST_ELEM(fmulcrr, XM_FORMAT_F4F4F4F4, 0x33) \
-    XM_INST_ELEM(fmodcrr, XM_FORMAT_F4F4F4F4, 0x34) \
+    XM_INST_ELEM(fsqrtcrr, XM_FORMAT_F4F4F4F4, 0x34) \
     /* Hole */ \
     XM_INST_ELEM(faddcri, XM_FORMAT_F4F4F4F4, 0x40) \
     XM_INST_ELEM(fsubcri, XM_FORMAT_F4F4F4F4, 0x41) \
     XM_INST_ELEM(fdivcri, XM_FORMAT_F4F4F4F4, 0x42) \
     XM_INST_ELEM(fmulcri, XM_FORMAT_F4F4F4F4, 0x43) \
-    XM_INST_ELEM(fmodcri, XM_FORMAT_F4F4F4F4, 0x44) \
+    XM_INST_ELEM(fsqrtcri, XM_FORMAT_F4F4F4F4, 0x44) \
+    /* Hole */ \
+    XM_INST_ELEM(fcvti, XM_FORMAT_R4F4F4F4, 0x80) \
+    XM_INST_ELEM(icvtf, XM_FORMAT_R4F4F4F4, 0x81) \
+    XM_INST_ELEM(fcvtri, XM_FORMAT_R4F4F4F4, 0x82) \
+    XM_INST_ELEM(icvtrf, XM_FORMAT_R4F4F4F4, 0x83) \
     /* Debug functions */ \
     XM_INST_ELEM(halt, XM_FORMAT_D8, 0x0f) \
 
