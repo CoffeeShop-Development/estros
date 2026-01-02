@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include "util.h"
 
-#define CC_SSA_MAX_FUNC_ARGS 8
+#define CC_SSA_MAX_ARGS 8
 
 #define CC_SSA_WIDTH_SET(N) \
     (((N) == 0) ? 1 : ((N) == 1) ? 2 : ((N) == 2) ? 3 \
@@ -36,11 +36,11 @@ typedef struct cc_ssa_token {
     cc_ssa_argument_t result;
     union {
         /* For call, the first arg is the func-ptr */
-        cc_ssa_argument_t args[1 + CC_SSA_MAX_FUNC_ARGS];
+        cc_ssa_argument_t args[CC_SSA_MAX_ARGS];
         cc_raw_data_view_t raw;
     } data;
     enum cc_ssa_token_type {
-        CC_SSA_TOK_INVALID = 0,
+        CC_SSA_TOK_NONE = 0,
         /* return %0 */
         CC_SSA_TOK_RETURN,
         /* %0 = call <function-ptr %1> (%2, %3, ..., %n) */
@@ -77,18 +77,20 @@ typedef struct cc_ssa_function {
     cc_ssa_token_view_t tokens;
 } cc_ssa_function_t;
 
+void cc_ssa_dump(cc_state_t *state);
 void cc_ssa_lower(cc_state_t *state);
 bool cc_ssa_is_used_in(cc_state_t *state, cc_ssa_token_t const *tok, cc_ssa_argument_t arg);
 bool cc_ssa_is_last_use(cc_state_t *state, cc_ssa_function_t *func, size_t offset, cc_ssa_argument_t arg);
 void cc_ssa_from_ast(cc_state_t *state, cc_ast_node_ref_t root);
+void cc_ssa_optimise(cc_state_t *state);
 
 /* Null aka. eliminated (literally nothing) */
 #define CC_SSA_ID_NULL 0
 /* Return value */
 #define CC_SSA_ID_RETVAL 1
-/* Arguments to functions are taken from 2 to 127 */
+/* Arguments to functions are taken from 2 to 31 */
 #define CC_SSA_ID_PARAM(N) ((N) + 2)
 /* First non-hardcoded temporal */
-#define CC_SSA_FIRST_TEMPORAL 128
+#define CC_SSA_FIRST_TEMPORAL 32
 
 #endif

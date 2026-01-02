@@ -57,6 +57,12 @@ static void cc_driver_parse_file(cc_driver_state_t *driver) {
     cc_ast_node_ref_t ast_root = cc_parse_translation_unit(state);
     cc_ssa_from_ast(state, ast_root);
 
+    printf("*** PRE-OPT\n");
+    cc_ssa_dump(state);
+    cc_ssa_optimise(state);
+    printf("*** POST-OPT\n");
+    cc_ssa_dump(state);
+
 #if 0
     state->ssa_funcs[0].name.pos = 0;
     state->ssa_funcs[0].name.len = 3;

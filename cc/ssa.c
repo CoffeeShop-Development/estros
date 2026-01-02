@@ -32,15 +32,19 @@ static const char *cc_ssa_get_token_name(enum cc_ssa_token_type t) {
     case CC_SSA_TOK_FMUL: return "fmul";
     case CC_SSA_TOK_FDIV: return "fdiv";
     case CC_SSA_TOK_RAW_DATA: return "raw data";
+    case CC_SSA_TOK_NONE: return "none";
     default: return "invalid";
     }
 }
 
 static void cc_ssa_print_func(cc_state_t *state, cc_ssa_function_t *func) {
-    printf("<func>:\n");
+    printf("%s:\n", cc_strview_get(state, func->name));
     for (size_t i = 0; i < func->tokens.len; ++i) {
         cc_ssa_token_t const *tok = state->ssa_tokens + func->tokens.pos + i;
         switch (tok->type) {
+        case CC_SSA_TOK_NONE:
+            printf("\t// none\n");
+            break;
         case CC_SSA_TOK_IDENTITY:
             printf("\t%%%u(%u) = %s %%%u(%u)\n",
                 (unsigned)tok->result.id, CC_SSA_WIDTH_GET(tok->result.width),
@@ -54,7 +58,7 @@ static void cc_ssa_print_func(cc_state_t *state, cc_ssa_function_t *func) {
                 cc_ssa_get_token_name(tok->type),
                 (unsigned)tok->data.args[0].id, CC_SSA_WIDTH_GET(tok->data.args[0].width)
             );
-            for (size_t i = 1; i < CC_SSA_MAX_FUNC_ARGS; ++i)
+            for (size_t i = 1; i < CC_SSA_MAX_ARGS; ++i)
                 printf("%%%u(%u), ", (unsigned)tok->data.args[i].id, CC_SSA_WIDTH_GET(tok->data.args[i].width));
             printf(")\n");
             break;
@@ -120,7 +124,7 @@ bool cc_ssa_is_used_in(cc_state_t *state, cc_ssa_token_t const *tok, cc_ssa_argu
     case CC_SSA_TOK_RAW_DATA:
         return tok->result.id == arg.id;
     default:
-        for (size_t i = 0; i < CC_SSA_MAX_FUNC_ARGS; ++i)
+        for (size_t i = 0; i < CC_SSA_MAX_ARGS; ++i)
             if (tok->data.args[i].id == arg.id)
                 return true;
         return tok->result.id == arg.id;
@@ -284,4 +288,36 @@ void cc_ssa_from_ast(cc_state_t *state, cc_ast_node_ref_t n) {
     default:
         abort();
     }
+}
+
+static void cc_ssa_replace_with(cc_state_t *state, cc_ssa_function_t *func, size_t offset, cc_ssa_argument_t from, cc_ssa_argument_t to) {
+    for (size_t j = offset; j < func->tokens.len; ++j) {
+        cc_ssa_token_t *tok = &state->ssa_tokens[func->tokens.pos + j];
+        switch (tok->type) {
+        case CC_SSA_TOK_RAW_DATA:
+            break;
+        default:
+            for (size_t i = 0; i < CC_SSA_MAX_ARGS; ++i)
+                if (tok->data.args[i].id == from.id)
+                    tok->data.args[i].id = to.id;
+            break;
+        }
+    }
+}
+static void cc_ssa_optimise_identity(cc_state_t *state, cc_ssa_function_t *func) {
+    for (size_t i = 0; i < func->tokens.len; ++i) {
+        cc_ssa_token_t *itok = &state->ssa_tokens[func->tokens.pos + i];
+        if (itok->type == CC_SSA_TOK_IDENTITY) {
+            assert(itok->result.id && itok->data.args[0].id);
+            cc_ssa_replace_with(state, func, i + 1, itok->result, itok->data.args[0]);
+            itok->type = CC_SSA_TOK_NONE;
+        }
+    }
+}
+static void cc_ssa_optimise_func(cc_state_t *state, cc_ssa_function_t *func) {
+    cc_ssa_optimise_identity(state, func);
+}
+void cc_ssa_optimise(cc_state_t *state) {
+    for (size_t i = 0; i < state->n_ssa_funcs; ++i)
+        cc_ssa_optimise_func(state, state->ssa_funcs + i);
 }

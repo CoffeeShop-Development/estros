@@ -81,6 +81,11 @@ static void cc_asm_write(cc_asm_state_t *as, const char *fmt, ...) {
     va_end(va);
 }
 
+static bool cc_asm_is_fixed_reg(cc_asm_register_t r) {
+    return (r >= CC_ASM_REGISTER_A0 || r <= CC_ASM_REGISTER_A3)
+        || r == CC_ASM_REGISTER_RA || r == CC_ASM_REGISTER_TP
+        || r == CC_ASM_REGISTER_BP || r == CC_ASM_REGISTER_SP;
+}
 static cc_asm_register_t cc_asm_find_free(cc_asm_state_t *as, enum cc_asm_register_category cat) {
     /* Integer from T0 to T7 */
     for (size_t i = CC_ASM_REGISTER_T0; cat == CC_ASM_REGISTER_CATEGORY_INTEGER && i < CC_ASM_REGISTER_T7; ++i)
@@ -104,7 +109,8 @@ static cc_asm_register_t cc_asm_regalloc(cc_asm_state_t *as, enum cc_asm_registe
 }
 static void cc_asm_regfree(cc_asm_state_t *as, cc_asm_register_t reg) {
     assert(as->reg_info[reg].id != 0);
-    as->reg_info[reg] = (cc_ssa_argument_t){0};
+    if (!cc_asm_is_fixed_reg(reg))
+        as->reg_info[reg] = (cc_ssa_argument_t){0};
 }
 static cc_asm_register_t cc_asm_find_used(cc_asm_state_t *as, cc_ssa_argument_t arg) {
     for (size_t i = 0; i < as->n_reg_info; ++i)
@@ -221,6 +227,13 @@ void cc_asm_lower_ssa(cc_state_t *state) {
         /* Builtin registers */
         memset(as.reg_info, 0, sizeof(cc_ssa_argument_t) * CC_ASM_REGISTER_SPILL);
         as.n_reg_info = CC_ASM_REGISTER_SPILL;
+
+        /* Parameters? */
+        for (size_t i = 0; i < 4; ++i) {
+            as.reg_info[CC_ASM_REGISTER_A0 + i].id = CC_SSA_ID_PARAM(i);
+            as.reg_info[CC_ASM_REGISTER_A0 + i].width = CC_SSA_WIDTH_SET(32);
+        }
+
         cc_asm_lower_func(&as, state->ssa_funcs + i);
     }
     cc_asm_finish(&as);
