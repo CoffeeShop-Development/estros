@@ -3,11 +3,9 @@
 
 #include <limits.h>
 #include <stddef.h>
-#include "strview.h"
+#include "util.h"
 
-typedef struct cc_ast_node_ref {
-    _BitInt(16) value;
-} cc_ast_node_ref_t;
+typedef unsigned _BitInt(16) cc_ast_node_ref_t;
 typedef struct cc_ast_node {
     union cc_ast_node_data {
         cc_strview_t type_name;
@@ -49,6 +47,14 @@ typedef struct cc_ast_node {
         struct {
             cc_strview_t name;
             cc_ast_node_ref_t init;
+            cc_ast_node_ref_t type_def;
+            enum cc_ast_var_flags {
+                CC_AST_VAR_FLAGS_TYPEDEF = 0x01,
+                CC_AST_VAR_FLAGS_STATIC = 0x02,
+                CC_AST_VAR_FLAGS_THREAD_LOCAL = 0x04,
+                CC_AST_VAR_FLAGS_REGISTER = 0x08,
+                CC_AST_VAR_FLAGS_EXTERN = 0x10,
+            } flags;
         } new_var;
         struct {
             cc_ast_node_ref_t *childs;
@@ -75,7 +81,7 @@ typedef struct cc_ast_node {
     } data;
     enum cc_ast_node_type {
         CC_AST_NODE_INVALID,
-        CC_AST_NODE_NEW_VARIABLE,
+        CC_AST_NODE_NEW_VAR,
         CC_AST_NODE_NEW_TYPE,
         CC_AST_NODE_REF_TYPE,
         CC_AST_NODE_REF_VAR,
@@ -113,5 +119,12 @@ typedef struct cc_ast_node {
         CC_AST_NODE_UNOP_MINUS,
     } type;
 } cc_ast_node_t;
+
+typedef struct cc_state cc_state_t;
+void cc_ast_dump(cc_state_t *state, cc_ast_node_ref_t ref);
+cc_ast_node_ref_t cc_ast_push_node(cc_state_t *state, cc_ast_node_t node);
+void cc_ast_pop_node(cc_state_t *state, cc_ast_node_ref_t ref);
+void cc_ast_push_children_to_block(cc_state_t *state, cc_ast_node_ref_t n, cc_ast_node_ref_t c);
+void cc_ast_push_children_to_type(cc_state_t *state, cc_ast_node_ref_t n, cc_ast_node_ref_t c);
 
 #endif

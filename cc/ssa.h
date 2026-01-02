@@ -3,7 +3,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
-#include "strview.h"
+#include "util.h"
 
 #define CC_SSA_MAX_FUNC_ARGS 8
 

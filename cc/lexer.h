@@ -1,7 +1,7 @@
 #ifndef LEXER_H
 #define LEXER_H 1
 
-#include "strview.h"
+#include "util.h"
 
 #define TOKEN_LIST \
     TOKEN_ELEM(ELLIPSIS, "...") \

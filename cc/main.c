@@ -12,7 +12,8 @@
 #include <stdbool.h>
 #include <limits.h>
 
-#include "dynarr.h"
+#include "util.h"
+#include "parser.h"
 #include "state.h"
 #include "ssa.h"
 #include "asm.h"
@@ -51,6 +52,8 @@ static void cc_driver_parse_file(cc_driver_state_t *driver) {
 
     cc_tokenize(state);
     cc_dump_tokens(state);
+
+    cc_parse_translation_unit(state);
 
     state->ssa_funcs[0].name.pos = 0;
     state->ssa_funcs[0].name.len = 3;

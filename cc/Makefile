@@ -13,7 +13,7 @@ clean:
 
 .PHONY: all build test clean
 
-xm_cc: main.o lexer.o parser.o ssa.o asm.o
+xm_cc: main.o lexer.o parser.o ssa.o asm.o ast.o util.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 .o: .c

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
-#include "dynarr.h"
+#include "util.h"
 #include "state.h"
 #include "asm.h"
 #include "ssa.h"

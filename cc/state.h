@@ -5,9 +5,9 @@
 #include <stdint.h>
 #include <limits.h>
 #include "lexer.h"
-#include "dynarr.h"
+#include "util.h"
 #include "ssa.h"
-#include "strview.h"
+#include "util.h"
 #include "ast.h"
 #include "ssa.h"
 #include "lexer.h"
