@@ -102,6 +102,10 @@ static cc_asm_register_t cc_asm_regalloc(cc_asm_state_t *as, enum cc_asm_registe
     as->reg_info[reg] = arg;
     return reg;
 }
+static void cc_asm_regfree(cc_asm_state_t *as, cc_asm_register_t reg) {
+    assert(as->reg_info[reg].id != 0);
+    as->reg_info[reg] = (cc_ssa_argument_t){0};
+}
 static cc_asm_register_t cc_asm_find_used(cc_asm_state_t *as, cc_ssa_argument_t arg) {
     for (size_t i = 0; i < as->n_reg_info; ++i)
         if (as->reg_info[i].id == arg.id)
@@ -119,6 +123,18 @@ static void cc_asm_write_raw_data(cc_asm_state_t *as, cc_raw_data_view_t raw) {
         cc_asm_write(as, "\t.word %04" PRIx16 "\n", *(uint16_t const *)(as->state->raw_data + raw.pos + i));
     for (; i + sizeof(uint8_t) <= raw.len; i += sizeof(uint8_t))
         cc_asm_write(as, "\t.byte %02" PRIx8 "\n", *(uint8_t const *)(as->state->raw_data + raw.pos + i));
+}
+
+static void cc_asm_generic_binop(cc_asm_state_t *as, cc_ssa_function_t *func, size_t offset, const char *insn) {
+    cc_ssa_token_t const *tok = as->state->ssa_tokens + func->tokens.pos + offset;
+    cc_asm_register_t res = cc_asm_regalloc(as, CC_ASM_REGISTER_CATEGORY_INTEGER, tok->result);
+    cc_asm_register_t arg0 = cc_asm_find_used(as, tok->data.args[0]);
+    cc_asm_register_t arg1 = cc_asm_find_used(as, tok->data.args[1]);
+    cc_asm_write(as, "\t%s %s,%s,%s\n", insn, asm_regname[res], asm_regname[arg0], asm_regname[arg1]);
+    if (cc_ssa_is_last_use(as->state, func, offset + 1, tok->data.args[0]))
+        cc_asm_regfree(as, arg0);
+    if (cc_ssa_is_last_use(as->state, func, offset + 1, tok->data.args[1]))
+        cc_asm_regfree(as, arg1);
 }
 
 static void cc_asm_lower_func(cc_asm_state_t *as, cc_ssa_function_t *func) {
@@ -155,15 +171,16 @@ static void cc_asm_lower_func(cc_asm_state_t *as, cc_ssa_function_t *func) {
             }
             break;
         }
-        case CC_SSA_TOK_ADD: {
-            cc_asm_register_t reg = cc_asm_regalloc(as, CC_ASM_REGISTER_CATEGORY_INTEGER, tok->result);
-            cc_asm_write(as, "\tadd %s,%s,%s\n",
-                asm_regname[reg],
-                asm_regname[cc_asm_find_used(as, tok->data.args[0])],
-                asm_regname[cc_asm_find_used(as, tok->data.args[1])]
-            );
-            break;
-        }
+        case CC_SSA_TOK_ADD: cc_asm_generic_binop(as, func, i, "add"); break;
+        case CC_SSA_TOK_SUB: cc_asm_generic_binop(as, func, i, "sub"); break;
+        case CC_SSA_TOK_MUL: cc_asm_generic_binop(as, func, i, "mul"); break;
+        case CC_SSA_TOK_DIV: cc_asm_generic_binop(as, func, i, "div"); break;
+        case CC_SSA_TOK_REM: cc_asm_generic_binop(as, func, i, "rem"); break;
+        case CC_SSA_TOK_LSHIFT: cc_asm_generic_binop(as, func, i, "shl"); break;
+        case CC_SSA_TOK_RSHIFT: cc_asm_generic_binop(as, func, i, "shr"); break;
+        case CC_SSA_TOK_XOR: cc_asm_generic_binop(as, func, i, "xor"); break;
+        case CC_SSA_TOK_OR: cc_asm_generic_binop(as, func, i, "or"); break;
+        case CC_SSA_TOK_AND: cc_asm_generic_binop(as, func, i, "and"); break;
         case CC_SSA_TOK_RETURN: {
             cc_asm_write(as, "\tret\n");
             break;

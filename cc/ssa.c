@@ -129,6 +129,7 @@ bool cc_ssa_is_used_in(cc_state_t *state, cc_ssa_token_t const *tok, cc_ssa_argu
 
 /* If the argument at this given offset is last used? */
 bool cc_ssa_is_last_use(cc_state_t *state, cc_ssa_function_t *func, size_t offset, cc_ssa_argument_t arg) {
+    assert(offset < func->tokens.len);
     for (size_t i = offset; i < func->tokens.len; ++i)
         if (cc_ssa_is_used_in(state, state->ssa_tokens + func->tokens.pos + i, arg))
             return false;
@@ -161,6 +162,20 @@ static size_t cc_ssa_get_func_parameter_index(cc_ssa_emitter_t *emit, cc_strview
             return i;
     }
     abort();
+}
+
+static enum cc_ssa_token_type cc_ssa_type_from_ast_binop_type(enum cc_ast_node_type t) {
+    return t == CC_AST_NODE_BINOP_ADD ? CC_SSA_TOK_ADD
+        : t == CC_AST_NODE_BINOP_SUB ? CC_SSA_TOK_SUB
+        : t == CC_AST_NODE_BINOP_MUL ? CC_SSA_TOK_MUL
+        : t == CC_AST_NODE_BINOP_DIV ? CC_SSA_TOK_DIV
+        : t == CC_AST_NODE_BINOP_REM ? CC_SSA_TOK_REM
+        : t == CC_AST_NODE_BINOP_BIT_AND ? CC_SSA_TOK_AND
+        : t == CC_AST_NODE_BINOP_BIT_XOR ? CC_SSA_TOK_XOR
+        : t == CC_AST_NODE_BINOP_BIT_OR ? CC_SSA_TOK_OR
+        : t == CC_AST_NODE_BINOP_LSHIFT ? CC_SSA_TOK_LSHIFT
+        : t == CC_AST_NODE_BINOP_RSHIFT ? CC_SSA_TOK_RSHIFT
+        : CC_SSA_TOK_IDENTITY;
 }
 
 static cc_ssa_argument_t cc_ssa_from_ast_within_func(cc_ssa_emitter_t *emit, cc_ast_node_ref_t n) {
@@ -212,8 +227,17 @@ static cc_ssa_argument_t cc_ssa_from_ast_within_func(cc_ssa_emitter_t *emit, cc_
             cc_ssa_argument_t rhs = cc_ssa_from_ast_within_func(emit, node->data.binop.rhs);
             switch (node->type) {
             case CC_AST_NODE_BINOP_ADD:
+            case CC_AST_NODE_BINOP_SUB:
+            case CC_AST_NODE_BINOP_MUL:
+            case CC_AST_NODE_BINOP_DIV:
+            case CC_AST_NODE_BINOP_REM:
+            case CC_AST_NODE_BINOP_BIT_XOR:
+            case CC_AST_NODE_BINOP_BIT_AND:
+            case CC_AST_NODE_BINOP_BIT_OR:
+            case CC_AST_NODE_BINOP_LSHIFT:
+            case CC_AST_NODE_BINOP_RSHIFT:
                 cc_ssa_push_token(emit, (cc_ssa_token_t) {
-                    .type = CC_SSA_TOK_ADD,
+                    .type = cc_ssa_type_from_ast_binop_type(node->type),
                     .result = res,
                     .data.args[0] = lhs,
                     .data.args[1] = rhs,
