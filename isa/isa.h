@@ -222,6 +222,9 @@ static enum xm_cb0 xm_get_cb0_from_format(enum xm_inst_format f) {
     XM_INST_ELEM(fround, XM_FORMAT_F4F4F4F4, 0x2a) \
     XM_INST_ELEM(ffloor, XM_FORMAT_F4F4F4F4, 0x2b) \
     XM_INST_ELEM(fceil, XM_FORMAT_F4F4F4F4, 0x2c) \
+    /*XM_INST_ELEM(fselnan, XM_FORMAT_F4F4F4F4, 0x2d) \
+    XM_INST_ELEM(fload, XM_FORMAT_R4F4F4F4, 0x2e) \
+    XM_INST_ELEM(fstore, XM_FORMAT_R4F4F4F4, 0x2f)*/ \
     /* Complex ISA */ \
     XM_INST_ELEM(faddcrr, XM_FORMAT_F4F4F4F4, 0x30) \
     XM_INST_ELEM(fsubcrr, XM_FORMAT_F4F4F4F4, 0x31) \
@@ -257,7 +260,7 @@ static struct xm_inst_table_entry {
 #define XM_PAGE_W 2 /* Write */
 #define XM_PAGE_X 4 /* Execute */
 
-/* Volatile registers $t0 - $t7 */
+/* Volatile registers $t0 - $t6 */
 #define XM_ABI_T0 0
 #define XM_ABI_T1 1
 #define XM_ABI_T2 2

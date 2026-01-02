@@ -11,85 +11,114 @@
 
 ## Integer instruction set
 
-### `add $rD,$rA,$rB,imm8`
+If `$rB` is omitted, it's assumed to be `0`.
+
+### `add $rD,$rA,imm8`
+### `add $rD,$rA,$rB,imm4`
 Calculates `$rD = $rA + ($rB + imm8)`
 
-### `sub $rD,$rA,$rB,imm8`
+### `sub $rD,$rA,imm8`
+### `sub $rD,$rA,$rB,imm4`
 Calculates `$rD = $rA - ($rB + imm8)`
 
-### `mul $rD,$rA,$rB,imm8`
+### `mul $rD,$rA,imm8`
+### `mul $rD,$rA,$rB,imm4`
 Calculates `$rD = $rA * ($rB + imm8)`
 
-### `div $rD,$rA,$rB,imm8`
+### `div $rD,$rA,imm8`
+### `div $rD,$rA,$rB,imm4`
 Calculates `$rD = $rA / ($rB + imm8)`
 
-### `rem $rD,$rA,$rB,imm8`
+### `rem $rD,$rA,imm8`
+### `rem $rD,$rA,$rB,imm4`
 Calculates `$rD = $rA % ($rB + imm8)`
 
-### `imul $rD,$rA,$rB,imm8`
+### `imul $rD,$rA,imm8`
+### `imul $rD,$rA,$rB,imm4`
 Calculates `$rD = signed($rA) * signed($rB + imm8)`
 
-### `and $rD,$rA,$rB,imm8`
+### `and $rD,$rA,imm8`
+### `and $rD,$rA,$rB,imm4`
 Calculates `$rD = $rA & ($rB + imm8)`
 
-### `xor $rD,$rA,$rB,imm8`
+### `xor $rD,$rA,imm8`
+### `xor $rD,$rA,$rB,imm4`
 Calculates `$rD = $rA ^ ($rB + imm8)`
 
-### `or $rD,$rA,$rB,imm8`
+### `or $rD,$rA,imm8`
+### `or $rD,$rA,$rB,imm4`
 Calculates `$rD = $rA | ($rB + imm8)`
 
-### `shl $rD,$rA,$rB,imm8`
+### `shl $rD,$rA,imm8`
+### `shl $rD,$rA,$rB,imm4`
 Calculates `$rD = $rA << ($rB + imm8)`
 
-### `shr $rD,$rA,$rB,imm8`
+### `shr $rD,$rA,imm8`
+### `shr $rD,$rA,$rB,imm4`
 Calculates `$rD = $rA >> ($rB + imm8)`
 
-### `popcnt $rD,$rA,$rB,imm8`
+### `popcnt $rD,$rA,imm8`
+### `popcnt $rD,$rA,$rB,imm4`
 Calculates `$rD = popcount($rA + ($rB + imm8))`
 
-### `clz $rD,$rA,$rB,imm8`
+### `clz $rD,$rA,imm8`
+### `clz $rD,$rA,$rB,imm4`
 Calculates `$rD = count_leading_zeros($rA + ($rB + imm8))`
 
-### `clo $rD,$rA,$rB,imm8`
+### `clo $rD,$rA,imm8`
+### `clo $rD,$rA,$rB,imm4`
 Calculates `$rD = count_leading_ones($rA + ($rB + imm8))`
 
-### `bswap $rD,$rA,$rB,imm8`
+### `bswap $rD,$rA,imm8`
+### `bswap $rD,$rA,$rB,imm4`
 Calculates `$rD = bswap($rA + ($rB + imm8))`
 
-### `ipcnt $rD,$rA,$rB,imm8`
+### `ipcnt $rD,$rA,imm8`
+### `ipcnt $rD,$rA,$rB,imm4`
 Calculates `$rD = 32 - popcount($rA + ($rB + imm8))`
 
-### `stb $rD,$rA,$rB,imm8`
+### `stb $rD,$rA,imm8`
+### `stb $rD,$rA,$rB,imm4`
 Calculates `u8:memory[$rA + $rB * imm8 * 4] = $rD`
 
-### `stw $rD,$rA,$rB,imm8`
+### `stw $rD,$rA,imm8`
+### `stw $rD,$rA,$rB,imm4`
 Calculates `u16:memory[$rA + $rB * imm8 * 4] = $rD`
 
-### `stl $rD,$rA,$rB,imm8`
+### `stl $rD,$rA,imm8`
+### `stl $rD,$rA,$rB,imm4`
 Calculates `u32:memory[$rA + $rB * imm8 * 4] = $rD`
 
-### `stq $rD,$rA,$rB,imm8`
+### `stq $rD,$rA,imm8`
+### `stq $rD,$rA,$rB,imm4`
 Calculates `u64:memory[$rA + $rB * imm8 * 4] = $rD`
 
-### `ldb $rD,$rA,$rB,imm8`
+### `ldb $rD,$rA,imm8`
+### `ldb $rD,$rA,$rB,imm4`
 Calculates `$rD = u8:memory[$rA + $rB * imm8 * 4]`
 
-### `ldw $rD,$rA,$rB,imm8`
+### `ldw $rD,$rA,imm8`
+### `ldw $rD,$rA,$rB,imm4`
 Calculates `$rD = u16:memory[$rA + $rB * imm8 * 4]`
 
-### `ldl $rD,$rA,$rB,imm8`
+### `ldl $rD,$rA,imm8`
+### `ldl $rD,$rA,$rB,imm4`
 Calculates `$rD = u32:memory[$rA + $rB * imm8 * 4]`
 
-### `ldq $rD,$rA,$rB,imm8`
+### `ldq $rD,$rA,imm8`
+### `ldq $rD,$rA,$rB,imm4`
 Calculates `$rD = u64:memory[$rA + $rB * imm8 * 4]`
 
-### `lea $rD,$rA,$rB,imm8`
+### `lea $rD,$rA,imm8`
+### `lea $rD,$rA,$rB,imm4`
 Calculates `$rD = $rA + $rB * imm8 * 4`
 
-### `cmp $rD,$rA,$rB,imm8`
+### `cmp $rD,$rA,imm8`
+### `cmp $rD,$rA,$rB,imm4`
 Compares `$rD = $rA + $rB + imm8`, updates the flags and stores the flags after the operation on `$rD`.
 
-### `cmpkp $rD,$rA,$rB,imm8`
+### `cmpkp $rD,$rA,imm8`
+### `cmpkp $rD,$rA,$rB,imm4`
 Compares `$rD = $rA + $rB + imm8` and stores the flags after the operation on `$rD` but keeps the flags without updating them.
 
 ## Accelerated DMA instruction set
@@ -334,6 +363,15 @@ Computes `$fD = floor($fA + $fB + $fC)`
 
 ### `fceil $fD,$fA,$fB,$fC`
 Computes `$fD = ceil($fA + $fB + $fC)`
+
+### `fselnan $fD,$fA,$fB,$fC`
+Computes `$fD = $fA == NaN ? $fB : $fC`
+
+### `fload $fD,$rA,$rB,$rC`
+Loads from memory address `$fD = float32[$rA + $rB + $rC]`
+
+### `fstore $fD,$rA,$rB,$rC`
+Stores into memory address `float32[$rA + $rB + $rC] = $fD`
 
 ## Complex instruction set
 
