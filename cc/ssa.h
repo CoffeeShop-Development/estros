@@ -87,7 +87,7 @@ void cc_ssa_from_ast(cc_state_t *state, cc_ast_node_ref_t root);
 /* Return value */
 #define CC_SSA_ID_RETVAL 1
 /* Arguments to functions are taken from 2 to 127 */
-#define CC_SSA_ID_ARG(N) ((N) + 2)
+#define CC_SSA_ID_PARAM(N) ((N) + 2)
 /* First non-hardcoded temporal */
 #define CC_SSA_FIRST_TEMPORAL 128
 

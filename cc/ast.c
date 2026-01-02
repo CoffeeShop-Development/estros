@@ -151,11 +151,11 @@ void cc_ast_coalesce(cc_state_t *state, cc_ast_node_ref_t *pref) {
     cc_ast_node_t *node = state->nodes + *pref;
     switch (node->type) {
     case CC_AST_NODE_BLOCK:
+        for (size_t i = 0; i < node->data.block.n_childs; ++i)
+            cc_ast_coalesce(state, &node->data.block.childs[i]);
         /* TODO: fix this bullshit */
         if (node->data.block.n_childs == 1)
             *pref = node->data.block.childs[0];
-        for (size_t i = 0; i < node->data.block.n_childs; ++i)
-            cc_ast_coalesce(state, &node->data.block.childs[i]);
         break;
     case CC_AST_NODE_NEW_TYPE:
         cc_ast_coalesce(state, &node->data.new_type.return_type);

@@ -127,6 +127,23 @@ static void cc_asm_lower_func(cc_asm_state_t *as, cc_ssa_function_t *func) {
     for (size_t i = 0; i < func->tokens.len; ++i) {
         cc_ssa_token_t const *tok = as->state->ssa_tokens + func->tokens.pos + i;
         switch (tok->type) {
+        case CC_SSA_TOK_IDENTITY: {
+            cc_asm_register_t reg = cc_asm_regalloc(as, CC_ASM_REGISTER_CATEGORY_INTEGER, tok->result);
+            cc_asm_register_t param_reg = CC_ASM_REGISTER_A0 + tok->data.args[0].id - CC_SSA_ID_PARAM(0);
+            if (param_reg >= CC_ASM_REGISTER_A0 && param_reg <= CC_ASM_REGISTER_A3) {
+                if (tok->data.args[0].width == CC_SSA_WIDTH_SET(32)) {
+                    cc_asm_write(as, "\tor %s,%s,%s,0\n", asm_regname[reg], asm_regname[param_reg], asm_regname[param_reg]);
+                } else if (tok->data.args[0].width == CC_SSA_WIDTH_SET(16)) {
+                    cc_asm_write(as, "\tor %s,%s,%s,0\n", asm_regname[reg], asm_regname[param_reg], asm_regname[param_reg]);
+                } else if (tok->data.args[0].width == CC_SSA_WIDTH_SET(8)) {
+                    cc_asm_write(as, "\tor %s,%s,%s,0\n", asm_regname[reg], asm_regname[param_reg], asm_regname[param_reg]);
+                    cc_asm_write(as, "\tand %s,%s,%s,0xff\n", asm_regname[reg], asm_regname[reg], asm_regname[reg]);
+                } else {
+                    abort();
+                }
+            }
+            break;
+        }
         case CC_SSA_TOK_RAW_DATA: {
             cc_asm_register_t reg = cc_asm_regalloc(as, CC_ASM_REGISTER_CATEGORY_INTEGER, tok->result);
             if (tok->result.width == CC_SSA_WIDTH_SET(32)) {
@@ -147,11 +164,14 @@ static void cc_asm_lower_func(cc_asm_state_t *as, cc_ssa_function_t *func) {
             );
             break;
         }
+        case CC_SSA_TOK_RETURN: {
+            cc_asm_write(as, "\tret\n");
+            break;
+        }
         default:
             break;
         }
     }
-    cc_asm_write(as, "\tret\n");
 
     cc_asm_write(as, ".section .data\n");
     for (size_t i = 0; i < func->tokens.len; ++i) {
