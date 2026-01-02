@@ -217,11 +217,10 @@ static cc_ssa_argument_t cc_ssa_from_ast_within_func(cc_ssa_emitter_t *emit, cc_
         cc_ssa_from_ast_within_func(emit, node->data.if_expr.else_);
         break;
     case CC_AST_NODE_RETURN: {
-        cc_ssa_argument_t arg = cc_ssa_from_ast_within_func(emit, node->data.retval);
         cc_ssa_push_token(emit, (cc_ssa_token_t) {
             .type = CC_SSA_TOK_RETURN,
             .result = res,
-            .data.args[0] = arg
+            .data.args[0] = cc_ssa_from_ast_within_func(emit, node->data.retval)
         });
         return res;
     }
@@ -265,13 +264,15 @@ static void cc_ssa_from_ast_var(cc_state_t *state, cc_ast_node_ref_t n) {
         cc_ssa_emitter_t emit;
         emit.state = state;
         emit.func = &state->ssa_funcs[state->n_ssa_funcs];
-        emit.func->tokens.pos = state->n_ssa_tokens;
         emit.arg.id = CC_SSA_FIRST_TEMPORAL;
         emit.tdef = tdef;
         state->ssa_funcs[state->n_ssa_funcs++] = (cc_ssa_function_t) {
-            .name = node->data.new_var.name
+            .name = node->data.new_var.name,
+            .tokens.pos = state->n_ssa_tokens
         };
         cc_ssa_from_ast_within_func(&emit, node->data.new_var.init);
+    } else {
+        abort();
     }
 }
 

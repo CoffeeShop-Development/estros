@@ -7,6 +7,7 @@ build: $(PROGS)
 test: build
 	./xm_cc samples/j000.c
 	./xm_cc samples/j001.c
+	./xm_cc samples/j002.c
 
 clean:
 	-rm *.o xm_cc
