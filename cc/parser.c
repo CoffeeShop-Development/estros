@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include "ast.h"
 #include "lexer.h"
@@ -61,7 +62,7 @@ static bool NAME(cc_state_t *state, cc_ast_node_ref_t expr, bool lock) { \
             cc_ast_pop_node(state, rhs_expr); \
             return false; \
         } \
-        cc_ast_push_children_to_block(state, expr, lhs_expr); \
+        cc_ast_push_children_to_block_coalesce(state, expr, lhs_expr); \
         return true; \
     } else if (!lock) { \
         if (NAME(state, lhs_expr, true) && (tok = cc_peek_token(state, 0)).type == TOK_TYPE) { \
@@ -564,5 +565,11 @@ void cc_parse_translation_unit(cc_state_t *state) {
     cc_ast_node_ref_t node;
     while ((node = cc_parse_external_declaration(state)) != CC_AST_NIL)
         cc_ast_push_children_to_block(state, block, node);
+    
+    printf("*** PRE-PASS\n");
     cc_ast_dump(state, block);
+    printf("\n*** AFTER PASS\n");
+    cc_ast_coalesce(state, &block);
+    cc_ast_dump(state, block);
+    printf("\n");
 }

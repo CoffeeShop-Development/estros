@@ -88,11 +88,9 @@ void cc_ast_dump(cc_state_t *state, cc_ast_node_ref_t ref) {
         cc_ast_dump(state, node->data.if_expr.else_);
         break;
     case CC_AST_NODE_BLOCK:
-        printf("=%zu (", node->data.block.n_childs);
-        for (size_t i = 0; i < node->data.block.n_childs; ++i) {
+        printf("%zu ", node->data.block.n_childs);
+        for (size_t i = 0; i < node->data.block.n_childs; ++i)
             cc_ast_dump(state, node->data.block.childs[i]);
-        }
-        printf(")");
         break;
     default:
         if (cc_ast_type_is_binop(node->type)) {
@@ -131,4 +129,51 @@ void cc_ast_push_children_to_type(cc_state_t *state, cc_ast_node_ref_t n, cc_ast
     ++bp->data.new_type.n_childs;
     bp->data.new_type.childs = realloc(bp->data.new_type.childs, bp->data.new_type.n_childs * sizeof(cc_ast_node_ref_t));
     bp->data.new_type.childs[bp->data.new_type.n_childs - 1] = c;
+}
+
+void cc_ast_push_children_to_block_coalesce(cc_state_t *state,  cc_ast_node_ref_t n, cc_ast_node_ref_t c) {
+    cc_ast_node_t *bp = &state->nodes[n];
+    assert(bp->type == CC_AST_NODE_BLOCK);
+    if (bp->data.block.n_childs == 0) {
+        /* TODO: better management? */
+        *bp = state->nodes[c];
+    } else {
+        cc_ast_push_children_to_block(state, n, c);
+    }
+}
+
+void cc_ast_coalesce(cc_state_t *state, cc_ast_node_ref_t *pref) {
+    cc_ast_node_t *node = state->nodes + *pref;
+    switch (node->type) {
+    case CC_AST_NODE_BLOCK:
+        /* TODO: fix this bullshit */
+        if (node->data.block.n_childs == 1)
+            *pref = node->data.block.childs[0];
+        for (size_t i = 0; i < node->data.block.n_childs; ++i)
+            cc_ast_coalesce(state, &node->data.block.childs[i]);
+        break;
+    case CC_AST_NODE_NEW_TYPE:
+        cc_ast_coalesce(state, &node->data.new_type.return_type);
+        for (size_t i = 0; i < node->data.new_type.n_childs; ++i)
+            cc_ast_coalesce(state, &node->data.new_type.childs[i]);
+        break;
+    case CC_AST_NODE_NEW_VAR:
+        cc_ast_coalesce(state, &node->data.new_var.type_def);
+        cc_ast_coalesce(state, &node->data.new_var.init);
+        break;
+    case CC_AST_NODE_IF:
+        cc_ast_coalesce(state, &node->data.if_expr.cond);
+        cc_ast_coalesce(state, &node->data.if_expr.then);
+        cc_ast_coalesce(state, &node->data.if_expr.else_);
+        break;
+    case CC_AST_NODE_RETURN:
+        cc_ast_coalesce(state, &node->data.retval);
+        break;
+    default:
+        if (cc_ast_type_is_binop(node->type)) {
+            cc_ast_coalesce(state, &node->data.binop.lhs);
+            cc_ast_coalesce(state, &node->data.binop.rhs);
+        }
+        break;
+    }
 }

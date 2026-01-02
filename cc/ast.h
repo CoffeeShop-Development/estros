@@ -126,5 +126,7 @@ cc_ast_node_ref_t cc_ast_push_node(cc_state_t *state, cc_ast_node_t node);
 void cc_ast_pop_node(cc_state_t *state, cc_ast_node_ref_t ref);
 void cc_ast_push_children_to_block(cc_state_t *state, cc_ast_node_ref_t n, cc_ast_node_ref_t c);
 void cc_ast_push_children_to_type(cc_state_t *state, cc_ast_node_ref_t n, cc_ast_node_ref_t c);
+void cc_ast_push_children_to_block_coalesce(cc_state_t *state, cc_ast_node_ref_t n, cc_ast_node_ref_t c);
+void cc_ast_coalesce(cc_state_t *state, cc_ast_node_ref_t *pref);
 
 #endif
