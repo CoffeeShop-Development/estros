@@ -304,6 +304,8 @@ static void cc_ssa_replace_with(cc_state_t *state, cc_ssa_function_t *func, size
         }
     }
 }
+
+/* Eliminates identity tokens and replaces them */
 static void cc_ssa_optimise_identity(cc_state_t *state, cc_ssa_function_t *func) {
     for (size_t i = 0; i < func->tokens.len; ++i) {
         cc_ssa_token_t *itok = &state->ssa_tokens[func->tokens.pos + i];
@@ -314,8 +316,26 @@ static void cc_ssa_optimise_identity(cc_state_t *state, cc_ssa_function_t *func)
         }
     }
 }
+
+/* Removes redundant "reused" results like with (a + b) * (a + b) */
+static void cc_ssa_optimise_reused(cc_state_t *state, cc_ssa_function_t *func) {
+    for (size_t i = 0; i < func->tokens.len; ++i) {
+        cc_ssa_token_t const *itok = &state->ssa_tokens[func->tokens.pos + i];
+        if (itok->type != CC_SSA_TOK_RAW_DATA) {
+            for (size_t j = i + 1; j < func->tokens.len; ++j) {
+                cc_ssa_token_t *jtok = &state->ssa_tokens[func->tokens.pos + j];
+                if (jtok->type == itok->type && memcmp(itok->data.args, jtok->data.args, sizeof(*itok->data.args)) == 0) {
+                    cc_ssa_replace_with(state, func, j + 1, jtok->result, itok->result);
+                    jtok->type = CC_SSA_TOK_NONE;
+                }
+            }
+        }
+    }
+}
+
 static void cc_ssa_optimise_func(cc_state_t *state, cc_ssa_function_t *func) {
     cc_ssa_optimise_identity(state, func);
+    cc_ssa_optimise_reused(state, func);
 }
 void cc_ssa_optimise(cc_state_t *state) {
     for (size_t i = 0; i < state->n_ssa_funcs; ++i)
