@@ -1,3 +1,4 @@
+#include "ast.h"
 #ifndef SSA_H
 #define SSA_H 1
 
@@ -40,6 +41,8 @@ typedef struct cc_ssa_token {
     } data;
     enum cc_ssa_token_type {
         CC_SSA_TOK_INVALID = 0,
+        /* return %0 */
+        CC_SSA_TOK_RETURN,
         /* %0 = call <function-ptr %1> (%2, %3, ..., %n) */
         CC_SSA_TOK_CALL,
         /* if %0 then <label %1> else <label %2> */
@@ -76,5 +79,16 @@ typedef struct cc_ssa_function {
 
 void cc_ssa_lower(cc_state_t *state);
 bool cc_ssa_is_used_in(cc_state_t *state, cc_ssa_token_t const *tok, cc_ssa_argument_t arg);
+bool cc_ssa_is_last_use(cc_state_t *state, cc_ssa_function_t *func, size_t offset, cc_ssa_argument_t arg);
+void cc_ssa_from_ast(cc_state_t *state, cc_ast_node_ref_t root);
+
+/* Null aka. eliminated (literally nothing) */
+#define CC_SSA_ID_NULL 0
+/* Return value */
+#define CC_SSA_ID_RETVAL 1
+/* Arguments to functions are taken from 2 to 127 */
+#define CC_SSA_ID_ARG(N) ((N) + 2)
+/* First non-hardcoded temporal */
+#define CC_SSA_FIRST_TEMPORAL 128
 
 #endif

@@ -123,7 +123,7 @@ static void cc_asm_write_raw_data(cc_asm_state_t *as, cc_raw_data_view_t raw) {
 
 static void cc_asm_lower_func(cc_asm_state_t *as, cc_ssa_function_t *func) {
     cc_asm_write(as, ".section .text\n");
-    cc_asm_write(as, "<func>:\n");
+    cc_asm_write(as, "%s:\n", cc_strview_get(as->state, func->name));
     for (size_t i = 0; i < func->tokens.len; ++i) {
         cc_ssa_token_t const *tok = as->state->ssa_tokens + func->tokens.pos + i;
         switch (tok->type) {

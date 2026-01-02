@@ -142,6 +142,11 @@ void cc_ast_push_children_to_block_coalesce(cc_state_t *state,  cc_ast_node_ref_
     }
 }
 
+cc_ast_node_ref_t cc_ast_copy_node(cc_state_t *state, cc_ast_node_ref_t n) {
+    assert(n > 0 && n < state->n_nodes);
+    return cc_ast_push_node(state, state->nodes[n]);
+}
+
 void cc_ast_coalesce(cc_state_t *state, cc_ast_node_ref_t *pref) {
     cc_ast_node_t *node = state->nodes + *pref;
     switch (node->type) {

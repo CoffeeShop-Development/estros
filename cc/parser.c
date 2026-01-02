@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "ast.h"
 #include "lexer.h"
 #include "state.h"
@@ -413,6 +414,14 @@ static bool cc_parse_direct_declarator(cc_state_t *state, cc_ast_node_ref_t decl
 
         tok = cc_peek_token(state, 0);
         if (tok.type == CC_TOK_LPAREN) {
+            cc_ast_node_t *type_node = &state->nodes[node->data.new_var.type_def];
+            cc_ast_node_ref_t copy_type = cc_ast_copy_node(state, node->data.new_var.type_def);
+            assert(type_node->type == CC_AST_NODE_NEW_TYPE);
+            *type_node = (cc_ast_node_t){0};
+            type_node->type = CC_AST_NODE_NEW_TYPE;
+            type_node->data.new_type.return_type = copy_type;
+            type_node->data.new_type.flags = CC_AST_TYPE_FLAGS_FUNCTION;
+        
             cc_next_token(state);
             cc_parse_parameter_type_list(state, decl);
             if ((tok = cc_peek_token(state, 0)).type == CC_TOK_RPAREN) {
@@ -555,7 +564,7 @@ static cc_ast_node_ref_t cc_parse_external_declaration(cc_state_t *state) {
     return CC_AST_NIL;
 }
 
-void cc_parse_translation_unit(cc_state_t *state) {
+cc_ast_node_ref_t cc_parse_translation_unit(cc_state_t *state) {
     cc_ast_node_ref_t empty_node = cc_ast_push_node(state, (cc_ast_node_t) {0});
     cc_ast_node_ref_t block = cc_ast_push_node(state, (cc_ast_node_t){
         .type = CC_AST_NODE_BLOCK,
@@ -572,4 +581,5 @@ void cc_parse_translation_unit(cc_state_t *state) {
     cc_ast_coalesce(state, &block);
     cc_ast_dump(state, block);
     printf("\n");
+    return block;
 }

@@ -1,7 +1,9 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "ssa.h"
+#include "ast.h"
 #include "state.h"
 #include "asm.h"
 
@@ -121,10 +123,91 @@ bool cc_ssa_is_used_in(cc_state_t *state, cc_ssa_token_t const *tok, cc_ssa_argu
         return tok->result.id == arg.id;
     }
 }
+
 /* If the argument at this given offset is last used? */
 bool cc_ssa_is_last_use(cc_state_t *state, cc_ssa_function_t *func, size_t offset, cc_ssa_argument_t arg) {
     for (size_t i = offset; i < func->tokens.len; ++i)
         if (cc_ssa_is_used_in(state, state->ssa_tokens + func->tokens.pos + i, arg))
             return false;
     return true;
+}
+
+typedef struct {
+    cc_state_t *state;
+    cc_ssa_function_t *func;
+    cc_ssa_argument_t arg;
+} cc_ssa_emitter_t;
+
+static cc_ssa_argument_t cc_ssa_from_ast_within_func(cc_ssa_emitter_t *emit, cc_ast_node_ref_t n) {
+    cc_ast_node_t *node = emit->state->nodes + n;
+    switch (node->type) {
+    case CC_AST_NODE_REF_VAR:
+        break;
+    case CC_AST_NODE_BLOCK:
+        for (size_t i = 0; i < node->data.block.n_childs; ++i)
+            cc_ssa_from_ast_within_func(emit, node->data.block.childs[i]);
+        break;
+    case CC_AST_NODE_NEW_TYPE:
+        cc_ssa_from_ast_within_func(emit, node->data.new_type.return_type);
+        for (size_t i = 0; i < node->data.new_type.n_childs; ++i)
+            cc_ssa_from_ast_within_func(emit, node->data.new_type.childs[i]);
+        break;
+    case CC_AST_NODE_NEW_VAR:
+        cc_ssa_from_ast_within_func(emit, node->data.new_var.type_def);
+        cc_ssa_from_ast_within_func(emit, node->data.new_var.init);
+        break;
+    case CC_AST_NODE_IF:
+        cc_ssa_from_ast_within_func(emit, node->data.if_expr.cond);
+        cc_ssa_from_ast_within_func(emit, node->data.if_expr.then);
+        cc_ssa_from_ast_within_func(emit, node->data.if_expr.else_);
+        break;
+    case CC_AST_NODE_RETURN: {
+        cc_ssa_argument_t arg = cc_ssa_from_ast_within_func(emit, node->data.retval);
+        emit->state->ssa_tokens[emit->state->n_ssa_tokens++] = (cc_ssa_token_t) {
+            .type = CC_SSA_TOK_RETURN,
+            .result.id = emit->arg.id++,
+            .result.width = CC_SSA_WIDTH_SET(32)
+        };
+        return arg;
+    }
+    default:
+        if (cc_ast_type_is_binop(node->type)) {
+            cc_ssa_argument_t lhs = cc_ssa_from_ast_within_func(emit, node->data.binop.lhs);
+            cc_ssa_argument_t rhs = cc_ssa_from_ast_within_func(emit, node->data.binop.rhs);
+        }
+        break;
+    }
+    return (cc_ssa_argument_t){0};
+}
+
+static void cc_ssa_from_ast_var(cc_state_t *state, cc_ast_node_ref_t n) {
+    cc_ast_node_t const *node = &state->nodes[n];
+    assert(node->type == CC_AST_NODE_NEW_VAR);
+    cc_ast_node_t const *tdef = &state->nodes[node->data.new_var.type_def];
+    assert(tdef->type == CC_AST_NODE_NEW_TYPE);
+    if (tdef->data.new_type.flags == CC_AST_TYPE_FLAGS_FUNCTION) {
+        cc_ssa_emitter_t emit;
+        emit.state = state;
+        emit.func = &state->ssa_funcs[state->n_ssa_funcs];
+        emit.arg.id = CC_SSA_FIRST_TEMPORAL;
+        state->ssa_funcs[state->n_ssa_funcs++] = (cc_ssa_function_t) {
+            .name = node->data.new_var.name
+        };
+        cc_ssa_from_ast_within_func(&emit, node->data.new_var.init);
+    }
+}
+
+void cc_ssa_from_ast(cc_state_t *state, cc_ast_node_ref_t n) {
+    cc_ast_node_t const *node = &state->nodes[n];
+    switch (node->type) {
+    case CC_AST_NODE_BLOCK:
+        for (size_t i = 0; i < node->data.block.n_childs; ++i)
+            cc_ssa_from_ast_var(state, node->data.block.childs[i]);
+        break;
+    case CC_AST_NODE_NEW_VAR:
+        cc_ssa_from_ast_var(state, n);
+        break;
+    default:
+        abort();
+    }
 }

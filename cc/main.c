@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <limits.h>
 
+#include "ast.h"
 #include "util.h"
 #include "parser.h"
 #include "state.h"
@@ -53,8 +54,10 @@ static void cc_driver_parse_file(cc_driver_state_t *driver) {
     cc_tokenize(state);
     cc_dump_tokens(state);
 
-    cc_parse_translation_unit(state);
+    cc_ast_node_ref_t ast_root = cc_parse_translation_unit(state);
+    cc_ssa_from_ast(state, ast_root);
 
+#if 0
     state->ssa_funcs[0].name.pos = 0;
     state->ssa_funcs[0].name.len = 3;
     state->ssa_funcs[0].tokens.pos = 0;
@@ -80,6 +83,7 @@ static void cc_driver_parse_file(cc_driver_state_t *driver) {
     state->ssa_tokens[2].data.args[1].id = 2;
     state->ssa_tokens[2].data.args[1].width = CC_SSA_WIDTH_SET(32);
     state->n_ssa_tokens = 3;
+#endif
 
     cc_asm_lower_ssa(state);
 

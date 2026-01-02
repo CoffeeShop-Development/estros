@@ -3,9 +3,53 @@
 
 #include <limits.h>
 #include <stddef.h>
+#include <stdbool.h>
 #include "util.h"
 
 typedef unsigned _BitInt(16) cc_ast_node_ref_t;
+
+enum cc_ast_node_type {
+    CC_AST_NODE_INVALID,
+    CC_AST_NODE_NEW_VAR,
+    CC_AST_NODE_NEW_TYPE,
+    CC_AST_NODE_REF_TYPE,
+    CC_AST_NODE_REF_VAR,
+    CC_AST_NODE_BLOCK,
+    CC_AST_NODE_IF,
+    CC_AST_NODE_CAST,
+    CC_AST_NODE_RETURN,
+    CC_AST_NODE_LITERAL_FLOAT,
+    CC_AST_NODE_LITERAL_INTEGER,
+    /* Binary operations A = B <op> C */
+#define CC_AST_NODE_BINOP (CC_AST_NODE_BINOP_ASSIGN)
+    CC_AST_NODE_BINOP_ASSIGN = 0x40,
+    CC_AST_NODE_BINOP_ADD,
+    CC_AST_NODE_BINOP_SUB,
+    CC_AST_NODE_BINOP_MUL,
+    CC_AST_NODE_BINOP_DIV,
+    CC_AST_NODE_BINOP_REM,
+    CC_AST_NODE_BINOP_BIT_AND,
+    CC_AST_NODE_BINOP_BIT_XOR,
+    CC_AST_NODE_BINOP_BIT_OR,
+    CC_AST_NODE_BINOP_LSHIFT,
+    CC_AST_NODE_BINOP_RSHIFT,
+    CC_AST_NODE_BINOP_COND_EQ,
+    CC_AST_NODE_BINOP_COND_NEQ,
+    CC_AST_NODE_BINOP_COND_GT,
+    CC_AST_NODE_BINOP_COND_LT,
+    CC_AST_NODE_BINOP_COND_GTE,
+    CC_AST_NODE_BINOP_COND_LTE,
+    CC_AST_NODE_BINOP_COND_AND,
+    CC_AST_NODE_BINOP_COND_OR,
+    CC_AST_NODE_BINOP_COND_XOR,
+    /* Unary operations A = <op> B */
+#define CC_AST_NODE_UNOP (CC_AST_NODE_UNOP_BIT_NOT)
+    CC_AST_NODE_UNOP_BIT_NOT = 0x80,
+    CC_AST_NODE_UNOP_COND_NOT,
+    CC_AST_NODE_UNOP_PLUS,
+    CC_AST_NODE_UNOP_MINUS,
+};
+
 typedef struct cc_ast_node {
     union cc_ast_node_data {
         cc_strview_t type_name;
@@ -77,50 +121,11 @@ typedef struct cc_ast_node {
         long double literal_ld;
         unsigned long long literal_ull;
     } data;
-    enum cc_ast_node_type {
-        CC_AST_NODE_INVALID,
-        CC_AST_NODE_NEW_VAR,
-        CC_AST_NODE_NEW_TYPE,
-        CC_AST_NODE_REF_TYPE,
-        CC_AST_NODE_REF_VAR,
-        CC_AST_NODE_BLOCK,
-        CC_AST_NODE_IF,
-        CC_AST_NODE_CAST,
-        CC_AST_NODE_RETURN,
-        CC_AST_NODE_LITERAL_FLOAT,
-        CC_AST_NODE_LITERAL_INTEGER,
-        /* Binary operations A = B <op> C */
-#define CC_AST_NODE_BINOP (CC_AST_NODE_BINOP_ASSIGN)
-        CC_AST_NODE_BINOP_ASSIGN = 0x40,
-        CC_AST_NODE_BINOP_ADD,
-        CC_AST_NODE_BINOP_SUB,
-        CC_AST_NODE_BINOP_MUL,
-        CC_AST_NODE_BINOP_DIV,
-        CC_AST_NODE_BINOP_REM,
-        CC_AST_NODE_BINOP_BIT_AND,
-        CC_AST_NODE_BINOP_BIT_XOR,
-        CC_AST_NODE_BINOP_BIT_OR,
-        CC_AST_NODE_BINOP_LSHIFT,
-        CC_AST_NODE_BINOP_RSHIFT,
-        CC_AST_NODE_BINOP_COND_EQ,
-        CC_AST_NODE_BINOP_COND_NEQ,
-        CC_AST_NODE_BINOP_COND_GT,
-        CC_AST_NODE_BINOP_COND_LT,
-        CC_AST_NODE_BINOP_COND_GTE,
-        CC_AST_NODE_BINOP_COND_LTE,
-        CC_AST_NODE_BINOP_COND_AND,
-        CC_AST_NODE_BINOP_COND_OR,
-        CC_AST_NODE_BINOP_COND_XOR,
-        /* Unary operations A = <op> B */
-#define CC_AST_NODE_UNOP (CC_AST_NODE_UNOP_BIT_NOT)
-        CC_AST_NODE_UNOP_BIT_NOT = 0x80,
-        CC_AST_NODE_UNOP_COND_NOT,
-        CC_AST_NODE_UNOP_PLUS,
-        CC_AST_NODE_UNOP_MINUS,
-    } type;
+    enum cc_ast_node_type type;
 } cc_ast_node_t;
 
 typedef struct cc_state cc_state_t;
+bool cc_ast_type_is_binop(enum cc_ast_node_type t);
 void cc_ast_dump(cc_state_t *state, cc_ast_node_ref_t ref);
 cc_ast_node_ref_t cc_ast_push_node(cc_state_t *state, cc_ast_node_t node);
 void cc_ast_pop_node(cc_state_t *state, cc_ast_node_ref_t ref);
@@ -128,5 +133,6 @@ void cc_ast_push_children_to_block(cc_state_t *state, cc_ast_node_ref_t n, cc_as
 void cc_ast_push_children_to_type(cc_state_t *state, cc_ast_node_ref_t n, cc_ast_node_ref_t c);
 void cc_ast_push_children_to_block_coalesce(cc_state_t *state, cc_ast_node_ref_t n, cc_ast_node_ref_t c);
 void cc_ast_coalesce(cc_state_t *state, cc_ast_node_ref_t *pref);
+cc_ast_node_ref_t cc_ast_copy_node(cc_state_t *state, cc_ast_node_ref_t n);
 
 #endif
