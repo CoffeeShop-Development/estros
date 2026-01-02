@@ -13,8 +13,10 @@ const char *cc_ast_get_name(enum cc_ast_node_type t) {
     case CC_AST_NODE_BLOCK: return "block";
     case CC_AST_NODE_IF: return "if";
     case CC_AST_NODE_CAST: return "cast";
+    case CC_AST_NODE_RETURN: return "return";
     case CC_AST_NODE_LITERAL_FLOAT: return "float";
     case CC_AST_NODE_LITERAL_INTEGER: return "integer";
+    case CC_AST_NODE_BINOP_ASSIGN: return "assign";
     case CC_AST_NODE_BINOP_ADD: return "add";
     case CC_AST_NODE_BINOP_SUB: return "sub";
     case CC_AST_NODE_BINOP_MUL: return "mul";
@@ -41,31 +43,65 @@ const char *cc_ast_get_name(enum cc_ast_node_type t) {
     }
 }
 
+bool cc_ast_type_is_binop(enum cc_ast_node_type t) {
+    return t >= CC_AST_NODE_BINOP && t < CC_AST_NODE_UNOP;
+}
+
 void cc_ast_dump(cc_state_t *state, cc_ast_node_ref_t ref) {
     cc_ast_node_t const *node = state->nodes + ref;
+    if (node->type == CC_AST_NODE_INVALID)
+        return (void)printf("nil");
+
     printf("(%u:%s", (unsigned)ref, cc_ast_get_name(node->type));
     switch (node->type) {
+    case CC_AST_NODE_REF_VAR:
+        if (node->data.var_name.pos) printf(" %s", cc_strview_get(state, node->data.var_name));
+        break;
+    case CC_AST_NODE_REF_TYPE:
+        if (node->data.type_name.pos) printf(" %s", cc_strview_get(state, node->data.type_name));
+        break;
     case CC_AST_NODE_NEW_TYPE:
-        printf(" %s <", cc_strview_get(state, node->data.new_type.name));
-        for (size_t i = 0; i < node->data.new_type.n_childs; ++i)
-            cc_ast_dump(state, node->data.new_type.childs[i]);
-        printf(">)");
+        if (node->data.new_type.name.pos) printf(" %s", cc_strview_get(state, node->data.new_type.name));
+        if (node->data.new_type.n_childs > 0) {
+            for (size_t i = 0; i < node->data.new_type.n_childs; ++i) {
+                printf("\n");
+                cc_ast_dump(state, node->data.new_type.childs[i]);
+            }
+        }
         break;
     case CC_AST_NODE_NEW_VAR:
         printf(" %s ", cc_strview_get(state, node->data.new_var.name));
         cc_ast_dump(state, node->data.new_var.type_def);
-        printf(")");
+        printf("(");
+        cc_ast_dump(state, node->data.new_var.init);
+        break;
+    case CC_AST_NODE_RETURN:
+        printf(" ");
+        cc_ast_dump(state, node->data.retval);
+        break;
+    case CC_AST_NODE_IF:
+        printf(" cond=");
+        cc_ast_dump(state, node->data.if_expr.cond);
+        printf(" then=");
+        cc_ast_dump(state, node->data.if_expr.then);
+        printf(" else=");
+        cc_ast_dump(state, node->data.if_expr.else_);
         break;
     case CC_AST_NODE_BLOCK:
-        printf("=%zu <", node->data.block.n_childs);
-        for (size_t i = 0; i < node->data.block.n_childs; ++i)
+        printf("=%zu (", node->data.block.n_childs);
+        for (size_t i = 0; i < node->data.block.n_childs; ++i) {
             cc_ast_dump(state, node->data.block.childs[i]);
-        printf(">)");
-        break;
-    default:
+        }
         printf(")");
         break;
+    default:
+        if (cc_ast_type_is_binop(node->type)) {
+            cc_ast_dump(state, node->data.binop.lhs);
+            cc_ast_dump(state, node->data.binop.rhs);
+        }
+        break;
     }
+    printf(")");
 }
 
 cc_ast_node_ref_t cc_ast_push_node(cc_state_t *state, cc_ast_node_t node) {
@@ -75,8 +111,8 @@ cc_ast_node_ref_t cc_ast_push_node(cc_state_t *state, cc_ast_node_t node) {
 }
 
 void cc_ast_pop_node(cc_state_t *state, cc_ast_node_ref_t ref) {
-    assert(ref > 0);
-    state->n_nodes = ref - 1;
+    assert(ref == state->n_nodes - 1);
+    state->n_nodes = ref;
 }
 
 void cc_ast_push_children_to_block(cc_state_t *state, cc_ast_node_ref_t n, cc_ast_node_ref_t c) {

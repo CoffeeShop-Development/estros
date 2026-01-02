@@ -69,13 +69,11 @@ typedef struct cc_ast_node {
             cc_ast_node_ref_t child;
         } cast;
         struct {
-            cc_ast_node_ref_t left;
-            cc_ast_node_ref_t op[2];
+            cc_ast_node_ref_t lhs;
+            cc_ast_node_ref_t rhs;
         } binop;
-        struct {
-            cc_ast_node_ref_t left;
-            cc_ast_node_ref_t op;
-        } unop;
+        cc_ast_node_ref_t unop;
+        cc_ast_node_ref_t retval;
         long double literal_ld;
         unsigned long long literal_ull;
     } data;
@@ -88,11 +86,13 @@ typedef struct cc_ast_node {
         CC_AST_NODE_BLOCK,
         CC_AST_NODE_IF,
         CC_AST_NODE_CAST,
+        CC_AST_NODE_RETURN,
         CC_AST_NODE_LITERAL_FLOAT,
         CC_AST_NODE_LITERAL_INTEGER,
         /* Binary operations A = B <op> C */
-#define CC_AST_NODE_BINOP (CC_AST_NODE_BINOP_ADD)
-        CC_AST_NODE_BINOP_ADD = 0x40,
+#define CC_AST_NODE_BINOP (CC_AST_NODE_BINOP_ASSIGN)
+        CC_AST_NODE_BINOP_ASSIGN = 0x40,
+        CC_AST_NODE_BINOP_ADD,
         CC_AST_NODE_BINOP_SUB,
         CC_AST_NODE_BINOP_MUL,
         CC_AST_NODE_BINOP_DIV,

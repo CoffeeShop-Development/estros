@@ -68,7 +68,7 @@ typedef struct cc_asm_state {
 } cc_asm_state_t;
 
 static const char *asm_regname[CC_ASM_REGISTER_SPILL] = {
-#define CC_ASM_REGISTER_ELEM(NAME, CNAME) #CNAME,
+#define CC_ASM_REGISTER_ELEM(NAME, CNAME) "$"#CNAME,
     CC_ASM_REGISTER_LIST
 #undef CC_ASM_REGISTER_ELEM
 };
